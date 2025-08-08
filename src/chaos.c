@@ -54,11 +54,19 @@ ChaosFunction pick_chaos_function(void) {
         weight_count += effects[i].current_weight;
     }
 
-    u32 rand = Rand_Next() % weight_count;
-    u32 pos = 0;
-    while (rand >= effects[pos].current_weight) {
+    u32 rand;
+    if (weight_count > 0) {
+        rand = Rand_Next() % weight_count;
+    } else {
+        rand = 0;
+    }
+
+    u32 pos;
+    for (pos = 0; pos < effect_count; pos++) {
+        if (rand < effects[pos].current_weight) {
+            break;
+        }
         rand -= effects[pos].current_weight;
-        pos++;
     }
 
     for (u32 i = 0; i < effect_count; i++) {
