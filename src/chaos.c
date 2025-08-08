@@ -4,12 +4,13 @@
 #define CFG_CHAOS_CYCLE_LENGTH (30 * FRAMES_PER_SECOND) // In frames.
 
 typedef enum {
+    CHAOS_MACHINE_STATE_DEFAULT,
     CHAOS_MACHINE_STATE_COUNT,
     CHAOS_MACHINE_STATE_REGISTER,
     CHAOS_MACHINE_STATE_RUN,
 } ChaosMachineState;
 
-ChaosMachineState state;
+ChaosMachineState state = CHAOS_MACHINE_STATE_DEFAULT;
 
 ChaosEffectEntity* effects;
 u32 effect_count = 0;
@@ -31,6 +32,7 @@ RECOMP_EXPORT void chaos_register_effect(ChaosEffect* effect) {
             pos++;
             break;
         default:
+            recomp_printf("WARNING Chaos effects can only be registered as callbacks to 'chaos_on_init'!");
             break;
     }
 }
