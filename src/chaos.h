@@ -5,22 +5,25 @@
 #include "recomputils.h"
 #include "global.h"
 
-typedef struct ChaosEffectEntity ChaosEffectEntity;
-
 typedef void (*ChaosFunction)(GraphicsContext* gfxCtx, GameState* gameState);
-typedef u32 (*WeightModifier)(const ChaosEffectEntity* effect);
+
+typedef enum {
+    CHAOS_DISTURBANCE_VERY_LOW,
+    CHAOS_DISTURBANCE_LOW,
+    CHAOS_DISTURBANCE_MEDIUM,
+    CHAOS_DISTURBANCE_HIGH,
+    CHAOS_DISTURBANCE_VERY_HIGH,
+    CHAOS_DISTURBANCE_COUNT
+} ChaosDisturbance;
 
 typedef struct {
-    ChaosFunction fun;
-    WeightModifier on_pick;
-    WeightModifier on_skip;
-    u32 weight;
-} ChaosEffect;
+    char* name;
+    u32 duration; // In frames.
 
-struct ChaosEffectEntity {
-    ChaosEffect effect;
-    u32 current_weight;
-};
+    ChaosFunction on_start_fun;
+    ChaosFunction update_fun;
+    ChaosFunction on_end_fun;
+} ChaosEffect;
 
 void chaos_init(void);
 void chaos_update(GraphicsContext* gfxCtx, GameState* gameState);
