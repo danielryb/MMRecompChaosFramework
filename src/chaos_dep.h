@@ -13,6 +13,7 @@ typedef enum {
     CHAOS_DISTURBANCE_HIGH,
     CHAOS_DISTURBANCE_VERY_HIGH,
     CHAOS_DISTURBANCE_NIGHTMARE,
+    CHAOS_DISTURBANCE_MAX,
 } ChaosDisturbance;
 
 typedef struct {
@@ -24,6 +25,8 @@ typedef struct {
     ChaosFunction on_end_fun;
 } ChaosEffect;
 
+typedef void ChaosEffectEntity;
+
 typedef struct {
     f32 initial_probability;
     f32 on_pick_multiplier;
@@ -33,11 +36,15 @@ typedef struct {
 typedef struct {
     char* name;
     u32 cycle_length;
+    ChaosGroupSettings default_groups_settings[CHAOS_DISTURBANCE_MAX];
 } ChaosMachineSettings;
 
 typedef void ChaosMachine;
 
+RECOMP_IMPORT("mm_recomp_chaos_framework", ChaosEffectEntity* chaos_register_effect(ChaosEffect* effect, ChaosDisturbance disturbance, char** exclusivity_tags))
 RECOMP_IMPORT("mm_recomp_chaos_framework", ChaosMachine* chaos_register_machine(ChaosMachineSettings* settings))
-RECOMP_IMPORT("mm_recomp_chaos_framework", void chaos_register_effect(ChaosEffect* effect, ChaosDisturbance disturbance, char** exclusivity_tags))
+RECOMP_IMPORT("mm_recomp_chaos_framework", void chaos_enable_effect(ChaosEffectEntity* entity))
+RECOMP_IMPORT("mm_recomp_chaos_framework", void chaos_disable_effect(ChaosEffectEntity* entity))
+RECOMP_IMPORT("mm_recomp_chaos_framework", void chaos_request_roll(ChaosMachine* machine))
 
 #endif /* __CHAOS_DEP_H__ */

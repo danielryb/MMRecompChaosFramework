@@ -4,12 +4,12 @@
 #include "recomputils.h"
 
 #ifdef DEBUG
-#define debug_log(...) recomp_printf("DEBUG "__VA_ARGS__)
+#define debug_log(fmt, ...) recomp_printf("DEBUG " fmt "\n" __VA_OPT__(,) __VA_ARGS__)
 #else
 #define debug_log(...) /* null */
 #endif
 
-#define warning(...) recomp_printf("WARNING " __VA_ARGS__)
-#define error(...) recomp_printf("ERROR " __VA_ARGS__)
+#define warning(fmt, ...) recomp_printf("WARNING " fmt "\n" __VA_OPT__(,) __VA_ARGS__)
+#define error(fmt, ...) recomp_printf("ERROR " fmt "\n" __VA_OPT__(,) __VA_ARGS__)
 
 #endif /* __DEBUG_H__ */
