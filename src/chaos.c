@@ -87,6 +87,7 @@ typedef struct {
     ActiveChaosEffectList* active_effects;
     ActiveChaosEffectList* remove_queue;
     u8 roll_requests;
+    u8 group_roll_requests[CHAOS_DISTURBANCE_MAX];
 } ChaosMachine;
 
 
@@ -204,6 +205,9 @@ RECOMP_EXPORT ChaosMachine* chaos_register_machine(const ChaosMachineSettings* s
                 group->settings = machine->settings.default_groups_settings[j];
                 group->probability = group->settings.initial_probability;
                 group->shared_weight = 1.0f;
+            }
+            for (int j = 0; j < CHAOS_DISTURBANCE_MAX; j++) {
+                machine->group_roll_requests[j] = 0;
             }
 
             return machine;
@@ -576,6 +580,15 @@ static ChaosEffectEntity* pick_chaos_effect(ChaosGroup* group) {
     return choice;
 }
 
+static void machine_perform_group_roll(ChaosMachine* machine, ChaosGroup* group, GraphicsContext* gfxCtx, GameState* gameState) {
+    ChaosEffectEntity* effect = pick_chaos_effect(group);
+    debug_log("Selected '%s' effect.\n\tEffect's weight after selection: %f.", effect->effect.name, get_effect_entity_weight(group, effect));
+
+    if (effect != NULL) {
+        active_list_add(machine, group, effect, gfxCtx, gameState);
+    }
+}
+
 static void machine_perform_roll(ChaosMachine* machine, GraphicsContext* gfxCtx, GameState* gameState) {
     debug_log("Beginning roll in '%s' chaos machine.", machine->settings.name);
 
@@ -585,12 +598,7 @@ static void machine_perform_roll(ChaosMachine* machine, GraphicsContext* gfxCtx,
         ChaosDisturbance disturbance = get_group_disturbance(machine, group);
         debug_log("Selected %s disturbance group.\n\tGroup's probability after selection: %f.", DISTURBANCE_NAME[disturbance], group->probability);
 
-        ChaosEffectEntity* effect = pick_chaos_effect(group);
-        debug_log("Selected '%s' effect.\n\tEffect's weight after selection: %f.", effect->effect.name, get_effect_entity_weight(group, effect));
-
-        if (effect != NULL) {
-            active_list_add(machine, group, effect, gfxCtx, gameState);
-        }
+        machine_perform_group_roll(machine, group, gfxCtx, gameState);
     } else {
         debug_log("Roll landed on empty space.");
     }
@@ -611,6 +619,20 @@ static void machine_update(ChaosMachine* machine, GraphicsContext* gfxCtx, GameS
     while(machine->roll_requests > 0) {
         machine_perform_roll(machine, gfxCtx, gameState);
         machine->roll_requests--;
+    }
+
+    for (int i = 0; i < CHAOS_DISTURBANCE_MAX; i++) {
+        u8* group_roll_requests = machine->group_roll_requests;
+        while(group_roll_requests[i] > 0) {
+            debug_log("Beginning group roll in '%s' chaos machine's %s disturbance group.", machine->settings.name, DISTURBANCE_NAME[i]);
+
+            ChaosGroup* group = &machine->groups[i];
+            machine_perform_group_roll(machine, group, gfxCtx, gameState);
+
+            debug_log("Group roll finished.");
+
+            group_roll_requests[i]--;
+        }
     }
 
     active_list_update(machine, gfxCtx, gameState);
@@ -674,4 +696,14 @@ RECOMP_EXPORT void chaos_request_roll(ChaosMachine* machine) {
     machine->roll_requests++;
 
     debug_log("Requested roll in '%s' chaos machine.", machine->settings.name);
+}
+
+RECOMP_EXPORT void chaos_request_group_roll(ChaosMachine* machine, ChaosDisturbance disturbance) {
+    if (state != CHAOS_STATE_RUN) {
+        warning("Can't request chaos effect rolls before initalization!");
+    }
+
+    machine->group_roll_requests[disturbance]++;
+
+    debug_log("Requested roll in %s disturbance group in '%s' chaos machine.", machine->settings.name);
 }

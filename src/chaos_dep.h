@@ -46,5 +46,6 @@ RECOMP_IMPORT("mm_recomp_chaos_framework", ChaosMachine* chaos_register_machine(
 RECOMP_IMPORT("mm_recomp_chaos_framework", void chaos_enable_effect(ChaosEffectEntity* entity))
 RECOMP_IMPORT("mm_recomp_chaos_framework", void chaos_disable_effect(ChaosEffectEntity* entity))
 RECOMP_IMPORT("mm_recomp_chaos_framework", void chaos_request_roll(ChaosMachine* machine))
+RECOMP_IMPORT("mm_recomp_chaos_framework", void chaos_request_group_roll(ChaosMachine* machine, ChaosDisturbance disturbance))
 
 #endif /* __CHAOS_DEP_H__ */
