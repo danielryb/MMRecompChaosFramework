@@ -7,8 +7,11 @@
 #include "recomputils.h"
 #include "global.h"
 
+#define GAME_CTX_ARG PlayState* play
+#define GAME_CTX play
+
 void chaos_init(void);
-void chaos_update(GraphicsContext* gfxCtx, GameState* gameState);
+void chaos_update(GAME_CTX_ARG);
 
 extern bool chaos_is_player_active;
 

@@ -4,7 +4,7 @@
 #include "modding.h"
 #include "global.h"
 
-typedef void (*ChaosFunction)(GraphicsContext* gfxCtx, GameState* gameState);
+typedef void (*ChaosFunction)(PlayState* play);
 
 typedef enum {
     CHAOS_DISTURBANCE_VERY_LOW,
@@ -35,7 +35,7 @@ typedef struct {
 
 typedef struct {
     char* name;
-    u32 cycle_length;
+    u32 cycle_length; // In frames.
     ChaosGroupSettings default_groups_settings[CHAOS_DISTURBANCE_MAX];
 } ChaosMachineSettings;
 
@@ -43,8 +43,10 @@ typedef void ChaosMachine;
 
 RECOMP_IMPORT("mm_recomp_chaos_framework", ChaosEffectEntity* chaos_register_effect(ChaosEffect* effect, ChaosDisturbance disturbance, char** exclusivity_tags))
 RECOMP_IMPORT("mm_recomp_chaos_framework", ChaosMachine* chaos_register_machine(ChaosMachineSettings* settings))
+
 RECOMP_IMPORT("mm_recomp_chaos_framework", void chaos_enable_effect(ChaosEffectEntity* entity))
 RECOMP_IMPORT("mm_recomp_chaos_framework", void chaos_disable_effect(ChaosEffectEntity* entity))
+
 RECOMP_IMPORT("mm_recomp_chaos_framework", void chaos_request_roll(ChaosMachine* machine))
 RECOMP_IMPORT("mm_recomp_chaos_framework", void chaos_request_group_roll(ChaosMachine* machine, ChaosDisturbance disturbance))
 

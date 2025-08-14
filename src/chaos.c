@@ -4,7 +4,7 @@
 
 #define INITIAL_MACHINE_COUNT 1
 
-typedef void (*ChaosFunction)(GraphicsContext* gfxCtx, GameState* gameState);
+typedef void (*ChaosFunction)(GAME_CTX_ARG);
 
 typedef enum {
     CHAOS_DISTURBANCE_VERY_LOW,
@@ -416,23 +416,23 @@ void chaos_init(void) {
     state = CHAOS_STATE_RUN;
 }
 
-static inline void effect_start(ChaosEffect* effect, GraphicsContext* gfxCtx, GameState* gameState) {
+static inline void effect_start(ChaosEffect* effect, GAME_CTX_ARG) {
     if (effect->on_start_fun != NULL) {
-        effect->on_start_fun(gfxCtx, gameState);
+        effect->on_start_fun(GAME_CTX);
     }
 
     debug_log("Effect '%s' started.", effect->name);
 }
 
-static inline void effect_update(ChaosEffect* effect, GraphicsContext* gfxCtx, GameState* gameState) {
+static inline void effect_update(ChaosEffect* effect, GAME_CTX_ARG) {
     if (effect->update_fun != NULL) {
-        effect->update_fun(gfxCtx, gameState);
+        effect->update_fun(GAME_CTX);
     }
 }
 
-static inline void effect_end(ChaosEffect* effect, GraphicsContext* gfxCtx, GameState* gameState) {
+static inline void effect_end(ChaosEffect* effect, GAME_CTX_ARG) {
     if (effect->on_end_fun != NULL) {
-        effect->on_end_fun(gfxCtx, gameState);
+        effect->on_end_fun(GAME_CTX);
     }
 
     debug_log("Effect '%s' ended.", effect->name);
@@ -464,7 +464,7 @@ static void active_list_queue_for_remove_entity(ChaosMachine* machine, ChaosGrou
     }
 }
 
-static void active_list_add(ChaosMachine* machine, ChaosGroup* group, ChaosEffectEntity* entity, GraphicsContext* gfxCtx, GameState* gameState) {
+static void active_list_add(ChaosMachine* machine, ChaosGroup* group, ChaosEffectEntity* entity, GAME_CTX_ARG) {
     ActiveChaosEffectList* new = recomp_alloc(sizeof(ActiveChaosEffectList));
     if (new == NULL) {
         error("Couldn't alloc an active list element!");
@@ -483,10 +483,10 @@ static void active_list_add(ChaosMachine* machine, ChaosGroup* group, ChaosEffec
     }
 
     ChaosEffect* effect = &entity->effect;
-    effect_start(effect, gfxCtx, gameState);
+    effect_start(effect, GAME_CTX);
 }
 
-static void active_list_remove_after(ChaosMachine* machine, ChaosGroup* group, ActiveChaosEffectList* element, GraphicsContext* gfxCtx, GameState* gameState) {
+static void active_list_remove_after(ChaosMachine* machine, ChaosGroup* group, ActiveChaosEffectList* element, GAME_CTX_ARG) {
     ActiveChaosEffectList* del;
 
     if (element == NULL) {
@@ -503,24 +503,24 @@ static void active_list_remove_after(ChaosMachine* machine, ChaosGroup* group, A
     entity->status = CHAOS_EFFECT_STATUS_AVAILABLE;
     update_weight_sums_upwards(group, entity);
 
-    effect_end(effect, gfxCtx, gameState);
+    effect_end(effect, GAME_CTX);
 
     recomp_free(del);
 }
 
 
-static void active_list_update(ChaosMachine* machine, GraphicsContext* gfxCtx, GameState* gameState) {
+static void active_list_update(ChaosMachine* machine, GAME_CTX_ARG) {
     ActiveChaosEffectList* prev = NULL;
 
     for (ActiveChaosEffectList* cur = machine->active_effects; cur != NULL; cur = cur->next) {
         ChaosEffectEntity* entity = cur->effect;
         ChaosEffect* effect = &entity->effect;
 
-        effect_update(effect, gfxCtx, gameState);
+        effect_update(effect, GAME_CTX);
 
         if (cur->timer >= effect->duration) {
             ChaosGroup* group = cur->group;
-            active_list_remove_after(machine, group, prev, gfxCtx, gameState);
+            active_list_remove_after(machine, group, prev, GAME_CTX);
             continue;
         }
         cur->timer++;
@@ -529,7 +529,7 @@ static void active_list_update(ChaosMachine* machine, GraphicsContext* gfxCtx, G
     }
 }
 
-static void remove_list_process(ChaosMachine* machine, GraphicsContext* gfxCtx, GameState* gameState) {
+static void remove_list_process(ChaosMachine* machine, GAME_CTX_ARG) {
     ActiveChaosEffectList* prev = NULL;
 
     ActiveChaosEffectList* cur = machine->remove_queue;
@@ -537,8 +537,8 @@ static void remove_list_process(ChaosMachine* machine, GraphicsContext* gfxCtx, 
         ChaosEffectEntity* entity = cur->effect;
         ChaosEffect* effect = &entity->effect;
 
-        effect_update(effect, gfxCtx, gameState);
-        effect_end(effect, gfxCtx, gameState);
+        effect_update(effect, GAME_CTX);
+        effect_end(effect, GAME_CTX);
 
         ActiveChaosEffectList* tmp = cur;
         cur = cur->next;
@@ -580,16 +580,16 @@ static ChaosEffectEntity* pick_chaos_effect(ChaosGroup* group) {
     return choice;
 }
 
-static void machine_perform_group_roll(ChaosMachine* machine, ChaosGroup* group, GraphicsContext* gfxCtx, GameState* gameState) {
+static void machine_perform_group_roll(ChaosMachine* machine, ChaosGroup* group, GAME_CTX_ARG) {
     ChaosEffectEntity* effect = pick_chaos_effect(group);
     debug_log("Selected '%s' effect.\n\tEffect's weight after selection: %f.", effect->effect.name, get_effect_entity_weight(group, effect));
 
     if (effect != NULL) {
-        active_list_add(machine, group, effect, gfxCtx, gameState);
+        active_list_add(machine, group, effect, GAME_CTX);
     }
 }
 
-static void machine_perform_roll(ChaosMachine* machine, GraphicsContext* gfxCtx, GameState* gameState) {
+static void machine_perform_roll(ChaosMachine* machine, GAME_CTX_ARG) {
     debug_log("Beginning roll in '%s' chaos machine.", machine->settings.name);
 
     ChaosGroup* group = pick_chaos_group(machine);
@@ -598,7 +598,7 @@ static void machine_perform_roll(ChaosMachine* machine, GraphicsContext* gfxCtx,
         ChaosDisturbance disturbance = get_group_disturbance(machine, group);
         debug_log("Selected %s disturbance group.\n\tGroup's probability after selection: %f.", DISTURBANCE_NAME[disturbance], group->probability);
 
-        machine_perform_group_roll(machine, group, gfxCtx, gameState);
+        machine_perform_group_roll(machine, group, GAME_CTX);
     } else {
         debug_log("Roll landed on empty space.");
     }
@@ -606,18 +606,18 @@ static void machine_perform_roll(ChaosMachine* machine, GraphicsContext* gfxCtx,
     debug_log("Roll finished.");
 }
 
-static void machine_update(ChaosMachine* machine, GraphicsContext* gfxCtx, GameState* gameState) {
+static void machine_update(ChaosMachine* machine, GAME_CTX_ARG) {
     u32 cycle_length = machine->settings.cycle_length;
     if (cycle_length > 0) {
         machine->cycle_timer++;
         if (machine->cycle_timer >= cycle_length) {
-            machine_perform_roll(machine, gfxCtx, gameState);
+            machine_perform_roll(machine, GAME_CTX);
             machine->cycle_timer = 0;
         }
     }
 
     while(machine->roll_requests > 0) {
-        machine_perform_roll(machine, gfxCtx, gameState);
+        machine_perform_roll(machine, GAME_CTX);
         machine->roll_requests--;
     }
 
@@ -627,7 +627,7 @@ static void machine_update(ChaosMachine* machine, GraphicsContext* gfxCtx, GameS
             debug_log("Beginning group roll in '%s' chaos machine's %s disturbance group.", machine->settings.name, DISTURBANCE_NAME[i]);
 
             ChaosGroup* group = &machine->groups[i];
-            machine_perform_group_roll(machine, group, gfxCtx, gameState);
+            machine_perform_group_roll(machine, group, GAME_CTX);
 
             debug_log("Group roll finished.");
 
@@ -635,13 +635,13 @@ static void machine_update(ChaosMachine* machine, GraphicsContext* gfxCtx, GameS
         }
     }
 
-    active_list_update(machine, gfxCtx, gameState);
-    remove_list_process(machine, gfxCtx, gameState);
+    active_list_update(machine, GAME_CTX);
+    remove_list_process(machine, GAME_CTX);
 }
 
-void chaos_update(GraphicsContext* gfxCtx, GameState* gameState) {
+void chaos_update(GAME_CTX_ARG) {
     for (u32 i = 0; i < machine_count; i++) {
-        machine_update(&machines[i], gfxCtx, gameState);
+        machine_update(&machines[i], GAME_CTX);
     }
 }
 
