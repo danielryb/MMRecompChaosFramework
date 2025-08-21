@@ -61,118 +61,9 @@ static inline ChaosDisturbance get_group_disturbance(ChaosMachine* machine, Chao
     return group - machine->groups;
 }
 
-static ChaosMachine* find_machine(void* ptr) {
-    u32 l = 0;
-    u32 r = machine_count;
-
-    while (l != r) {
-        u32 m = (r + l) / 2;
-        void* m_ptr = &machines[m];
-
-        if (ptr < m_ptr) {
-            r = m;
-        } else {
-            l = m;
-        }
-    }
-
-    return &machines[l];
-}
-
-static ChaosGroup* find_group(ChaosMachine* machine, void* ptr) {
-    u32 l = 0;
-    u32 r = CHAOS_DISTURBANCE_MAX;
-
-    while (l != r) {
-        u32 m = (r + l) / 2;
-        void* m_ptr = &machine->groups[m];
-
-        if (ptr < m_ptr) {
-            r = m;
-        } else {
-            l = m;
-        }
-    }
-
-    return &machine->groups[l];
-}
-
-RECOMP_EXPORT ChaosMachine* chaos_register_machine(const ChaosMachineSettings* settings) {
-    switch (state) {
-        case CHAOS_STATE_MACHINE_COUNT:
-            machine_count++;
-            break;
-        case CHAOS_STATE_MACHINE_REGISTER:;
-            u32 i = machine_count++;
-            ChaosMachine* machine = &machines[i];
-
-            machine->settings = *settings;
-            machine->cycle_timer = 0;
-            machine->active_effects = NULL;
-            machine->remove_queue = NULL;
-            machine->roll_requests = 0;
-            for (int j = 0; j < CHAOS_DISTURBANCE_MAX; j++) {
-                ChaosGroup* group = &machine->groups[j];
-                group->settings = machine->settings.default_groups_settings[j];
-                group->probability = group->settings.initial_probability;
-                group->shared_weight = 1.0f;
-            }
-            for (int j = 0; j < CHAOS_DISTURBANCE_MAX; j++) {
-                machine->group_roll_requests[j] = 0;
-            }
-
-            return machine;
-        case CHAOS_STATE_RUN:
-        case CHAOS_STATE_DEFAULT:
-            warning("Chaos machines can only be registered as callbacks to 'chaos_on_init'!");
-            break;
-        default:
-            break;
-    }
-    return NULL;
-}
-
-RECOMP_EXPORT ChaosEffectEntity* chaos_register_effect_to(ChaosMachine* machine, const ChaosEffect* effect, ChaosDisturbance disturbance, const char** exclusivity_tags) {
-    if (disturbance >= CHAOS_DISTURBANCE_MAX) {
-        warning("Invalid disturbance provided!");
-        return NULL;
-    }
-
-    switch (state) {
-        case CHAOS_STATE_EFFECT_COUNT:
-            machine->groups[disturbance].effect_count++;
-            break;
-        case CHAOS_STATE_EFFECT_REGISTER:;
-            u32 i = machine->groups[disturbance].effect_count++;
-            ChaosEffectEntity* entity = &machine->groups[disturbance].effects[i];
-            entity->effect = *effect;
-            entity->weight_modifier = 0.0f;
-            entity->status = CHAOS_EFFECT_STATUS_AVAILABLE;
-            entity->left_available_weight_sum = 0.0f;
-
-            return entity;
-        case CHAOS_STATE_RUN:
-        case CHAOS_STATE_DEFAULT:
-            warning("Chaos effects can only be registered as callbacks to 'chaos_on_init'!");
-            break;
-        default:
-            break;
-    }
-    return NULL;
-}
-
-RECOMP_EXPORT ChaosEffectEntity* chaos_register_effect(const ChaosEffect* effect, ChaosDisturbance disturbance, const char** exclusivity_tags) {
-    return chaos_register_effect_to(machines, effect, disturbance, exclusivity_tags);
-}
-
-static void reset_effect_counts(void) {
-    for (u32 i = 0; i < machine_count; i++) {
-        ChaosMachine* machine = &machines[i];
-        for (int j = 0; j < CHAOS_DISTURBANCE_MAX; j++) {
-            ChaosGroup* group = &machine->groups[j];
-            group->effect_count = 0;
-        }
-    }
+static ChaosMachine* get_machine(ChaosGroup* ptr) {
+    u32 pos = ((void*)ptr - (void*)machines) / sizeof(ChaosMachine);
+    return &machines[pos];
 }
 
 static f32 get_effect_entity_weight(ChaosGroup* group, ChaosEffectEntity* entity) {
@@ -233,8 +124,7 @@ static ChaosEffectEntity* get_effect_entity_by_weight(ChaosGroup* group, f32 wei
 }
 
 static inline u32 get_effect_entity_pos(ChaosGroup* group, ChaosEffectEntity* entity) {
-    u32 dist = entity - group->effects;
-    return dist / sizeof(ChaosEffectEntity);
+    return entity - group->effects;
 }
 
 static void update_weight_sums_upwards(ChaosGroup* group, ChaosEffectEntity* entity) {
@@ -563,8 +453,8 @@ RECOMP_EXPORT void chaos_enable_effect(ChaosEffectEntity* entity) {
 
     // TODO Check tags.
     if (entity->status == CHAOS_EFFECT_STATUS_DISABLED) {
-        ChaosMachine* machine = find_machine(entity);
-        ChaosGroup* group = find_group(machine, entity);
+        ChaosGroup* group = entity->owner;
+        ChaosMachine* machine = get_machine(group);
 
         entity->status = CHAOS_EFFECT_STATUS_AVAILABLE;
         update_weight_sums_upwards(group, entity);
@@ -578,8 +468,8 @@ RECOMP_EXPORT void chaos_disable_effect(ChaosEffectEntity* entity) {
         warning("Chaos effects can't be disabled before initalization!");
     }
 
-    ChaosMachine* machine = find_machine(entity);
-    ChaosGroup* group = find_group(machine, entity);
+    ChaosGroup* group = entity->owner;
+    ChaosMachine* machine = get_machine(group);
 
     // TODO Check tags.
     switch (entity->status) {

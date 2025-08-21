@@ -32,7 +32,6 @@ typedef enum {
     CHAOS_DISTURBANCE_MAX,
 } ChaosDisturbance;
 
-
 typedef struct {
     char* name;
     u32 duration; // In frames.
@@ -50,12 +49,16 @@ typedef enum {
     CHAOS_EFFECT_STATUS_DISABLED,
 } ChaosEffectStatus;
 
+typedef struct ChaosGroup ChaosGroup;
+
 typedef struct {
     ChaosEffect effect;
     f32 weight_modifier;
     ChaosEffectStatus status;
 
     f32 left_available_weight_sum; // sum of weights of left subtree
+
+    ChaosGroup* owner;
 } ChaosEffectEntity;
 
 
@@ -65,14 +68,14 @@ typedef struct {
     f32 winner_weight_share;
 } ChaosGroupSettings;
 
-typedef struct {
+struct ChaosGroup {
     ChaosGroupSettings settings;
     f32 probability;
 
     ChaosEffectEntity* effects;
     u32 effect_count;
     f32 shared_weight; // per effect
-} ChaosGroup;
+};
 
 
 typedef struct {
