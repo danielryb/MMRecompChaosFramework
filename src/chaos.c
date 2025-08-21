@@ -138,42 +138,120 @@ static void update_weight_sums_upwards(ChaosGroup* group, ChaosEffectEntity* ent
     }
 }
 
-void chaos_init(void) {
-    state = CHAOS_STATE_MACHINE_COUNT;
+RECOMP_EXPORT ChaosMachine* chaos_register_machine(const ChaosMachineSettings* settings) {
+    ChaosMachine* ret = NULL;
+    switch (state) {
+        case CHAOS_STATE_MACHINE_REGISTER:;
+            u32 i = machine_count++;
+            ChaosMachine* machine = &machines[i];
 
+            machine->settings = *settings;
+            machine->cycle_timer = 0;
+            machine->active_effects = NULL;
+            machine->remove_queue = NULL;
+            machine->roll_requests = 0;
+            for (int j = 0; j < CHAOS_DISTURBANCE_MAX; j++) {
+                ChaosGroup* group = &machine->groups[j];
+                group->settings = machine->settings.default_groups_settings[j];
+                group->probability = group->settings.initial_probability;
+                group->shared_weight = 1.0f;
+            }
+            for (int j = 0; j < CHAOS_DISTURBANCE_MAX; j++) {
+                machine->group_roll_requests[j] = 0;
+            }
+
+            ret = machine;
+            break;
+        case CHAOS_STATE_RUN:
+        case CHAOS_STATE_DEFAULT:
+            warning("Chaos machines can only be registered as callbacks to 'chaos_on_init'!");
+            break;
+        default:
+            ret = machines + machine_count;
+            machine_count++;
+            break;
+    }
+    return ret;
+}
+
+RECOMP_EXPORT ChaosEffectEntity* chaos_register_effect_to(ChaosMachine* machine, const ChaosEffect* effect, ChaosDisturbance disturbance, const char** exclusivity_tags) {
+    if (disturbance >= CHAOS_DISTURBANCE_MAX) {
+        warning("Invalid disturbance provided!");
+        return NULL;
+    }
+
+    switch (state) {
+        case CHAOS_STATE_EFFECT_COUNT:
+            machine->groups[disturbance].effect_count++;
+            break;
+        case CHAOS_STATE_EFFECT_REGISTER:;
+            ChaosGroup* group = &machine->groups[disturbance];
+            u32 i = group->effect_count++;
+            ChaosEffectEntity* entity = &group->effects[i];
+
+            entity->effect = *effect;
+            entity->weight_modifier = 0.0f;
+            entity->status = CHAOS_EFFECT_STATUS_AVAILABLE;
+            entity->left_available_weight_sum = 0.0f;
+            entity->owner = group;
+
+            return entity;
+        case CHAOS_STATE_RUN:
+        case CHAOS_STATE_DEFAULT:
+            warning("Chaos effects can only be registered as callbacks to 'chaos_on_init'!");
+            break;
+        default:
+            break;
+    }
+    return NULL;
+}
+
+RECOMP_EXPORT ChaosEffectEntity* chaos_register_effect(const ChaosEffect* effect, ChaosDisturbance disturbance, const char** exclusivity_tags) {
+    return chaos_register_effect_to(machines, effect, disturbance, exclusivity_tags);
+}
+
+static void reset_effect_counts(void) {
+    for (u32 i = 0; i < machine_count; i++) {
+        ChaosMachine* machine = &machines[i];
+        for (int j = 0; j < CHAOS_DISTURBANCE_MAX; j++) {
+            ChaosGroup* group = &machine->groups[j];
+            group->effect_count = 0;
+        }
+    }
+}
+
+void chaos_call_init_callback(void) {
+    reset_effect_counts();
     machine_count = 0;
     chaos_register_machine(&DEFAULT_MACHINE_SETTINGS);
     chaos_on_init();
+}
+
+void chaos_init(void) {
+    state = CHAOS_STATE_MACHINE_COUNT;
+
+    chaos_call_init_callback();
+
     machines = recomp_alloc(sizeof(ChaosMachine) * machine_count);
     if (machines == NULL) {
         error("Couldn't allocate an array for chaos machines!");
         return;
     }
 
-
     debug_log("Detected %d chaos machine registration%s.", machine_count, ((machine_count != 1) ? "s" : ""));
 
     state = CHAOS_STATE_MACHINE_REGISTER;
 
-    machine_count = 0;
-    chaos_register_machine(&DEFAULT_MACHINE_SETTINGS);
-    chaos_on_init();
+    chaos_call_init_callback();
 
     for (u32 i = 0; i < machine_count; i++) {
         ChaosMachine* machine = &machines[i];
-        for (int j = 0; j < CHAOS_DISTURBANCE_MAX; j++) {
-            ChaosGroup* group = &machine->groups[j];
-            group->settings = machine->settings.default_groups_settings[j];
-            group->probability = group->settings.initial_probability;
-        }
-
         debug_log("Created '%s' chaos machine.", machine->settings.name);
     }
 
     state = CHAOS_STATE_EFFECT_COUNT;
 
-    reset_effect_counts();
-    chaos_on_init();
+    chaos_call_init_callback();
 
     for (u32 i = 0; i < machine_count; i++) {
         u32 total_count = 0;
@@ -197,8 +275,7 @@ void chaos_init(void) {
 
     state = CHAOS_STATE_EFFECT_REGISTER;
 
-    reset_effect_counts();
-    chaos_on_init();
+    chaos_call_init_callback();
 
     for (u32 i = 0; i < machine_count; i++) {
         ChaosMachine* machine = &machines[i];
