@@ -110,6 +110,7 @@ typedef enum {
 
 extern ChaosMachine* machines;
 extern u32 machine_count;
+extern bool debug_disable_rolling;
 extern const char* DISTURBANCE_NAME[CHAOS_DISTURBANCE_MAX];
 
 void active_list_add(ChaosMachine* machine, ChaosGroup* group, ChaosEffectEntity* entity, GAME_CTX_ARG);

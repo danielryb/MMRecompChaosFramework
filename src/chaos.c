@@ -14,6 +14,8 @@ ChaosState state;
 ChaosMachine* machines;
 u32 machine_count;
 
+bool debug_disable_rolling = false;
+
 
 static const ChaosMachineSettings DEFAULT_MACHINE_SETTINGS = {
     .name = "*",
@@ -516,7 +518,7 @@ static void machine_perform_roll(ChaosMachine* machine, GAME_CTX_ARG) {
 }
 
 static void machine_update(ChaosMachine* machine, GAME_CTX_ARG) {
-    u32 cycle_length = machine->settings.cycle_length;
+    u32 cycle_length = debug_disable_rolling ? 0 : machine->settings.cycle_length;
     if (cycle_length > 0) {
         machine->cycle_timer++;
         if (machine->cycle_timer >= cycle_length) {
