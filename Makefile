@@ -3,6 +3,7 @@ BUILD_DIR := build
 CC      := clang
 LD      := ld.lld
 TARGET  := $(BUILD_DIR)/mod.elf
+DEBUG   := 0
 
 LDSCRIPT := mod.ld
 CFLAGS   := -target mips -mips2 -mabi=32 -O2 -G0 -mno-abicalls -mno-odd-spreg -mno-check-zero-division \
@@ -12,6 +13,10 @@ CFLAGS   := -target mips -mips2 -mabi=32 -O2 -G0 -mno-abicalls -mno-odd-spreg -m
 CPPFLAGS := -nostdinc -D_LANGUAGE_C -DMIPS -DF3DEX_GBI_2 -DF3DEX_GBI_PL -DGBI_DOWHILE -I include -I include/dummy_headers \
             -I mm-decomp/include -I mm-decomp/src -I mm-decomp/extracted/n64-us -I mm-decomp/expected/build/n64-us -I mm-decomp/include/libc \
             -I src -Wno-constant-conversion #-DDEBUG
+
+ifeq ($(DEBUG), 1)
+    CFLAGS += -DDEBUG
+endif
 
 LDFLAGS  := -nostdlib -T $(LDSCRIPT) -Map $(BUILD_DIR)/mod.map --unresolved-symbols=ignore-all --emit-relocs -e 0 --no-nmagic
 
