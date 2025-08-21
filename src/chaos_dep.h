@@ -6,16 +6,6 @@
 
 typedef void (*ChaosFunction)(PlayState* play);
 
-typedef enum {
-    CHAOS_DISTURBANCE_VERY_LOW,
-    CHAOS_DISTURBANCE_LOW,
-    CHAOS_DISTURBANCE_MEDIUM,
-    CHAOS_DISTURBANCE_HIGH,
-    CHAOS_DISTURBANCE_VERY_HIGH,
-    CHAOS_DISTURBANCE_NIGHTMARE,
-    CHAOS_DISTURBANCE_MAX,
-} ChaosDisturbance;
-
 typedef struct {
     char* name;
     u32 duration; // In frames.
@@ -26,6 +16,16 @@ typedef struct {
 } ChaosEffect;
 
 typedef void ChaosEffectEntity;
+
+typedef enum {
+    CHAOS_DISTURBANCE_VERY_LOW,
+    CHAOS_DISTURBANCE_LOW,
+    CHAOS_DISTURBANCE_MEDIUM,
+    CHAOS_DISTURBANCE_HIGH,
+    CHAOS_DISTURBANCE_VERY_HIGH,
+    CHAOS_DISTURBANCE_NIGHTMARE,
+    CHAOS_DISTURBANCE_MAX,
+} ChaosDisturbance;
 
 typedef struct {
     f32 initial_probability;
@@ -47,6 +47,7 @@ RECOMP_IMPORT("mm_recomp_chaos_framework", ChaosMachine* chaos_register_machine(
 
 RECOMP_IMPORT("mm_recomp_chaos_framework", void chaos_enable_effect(ChaosEffectEntity* entity))
 RECOMP_IMPORT("mm_recomp_chaos_framework", void chaos_disable_effect(ChaosEffectEntity* entity))
+RECOMP_IMPORT("mm_recomp_chaos_framework", void chaos_stop_effect(ChaosEffectEntity* entity))
 
 RECOMP_IMPORT("mm_recomp_chaos_framework", void chaos_request_roll(ChaosMachine* machine))
 RECOMP_IMPORT("mm_recomp_chaos_framework", void chaos_request_group_roll(ChaosMachine* machine, ChaosDisturbance disturbance))

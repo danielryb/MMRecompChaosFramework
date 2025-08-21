@@ -336,6 +336,7 @@ static void active_list_queue_for_remove_entity(ChaosMachine* machine, ChaosGrou
     for (ActiveChaosEffectList* cur = machine->active_effects; cur != NULL; cur = cur->next) {
         if (cur->effect == entity) {
             active_list_queue_for_remove_after(machine, prev);
+            break;
         }
 
         prev = cur;
@@ -563,6 +564,26 @@ RECOMP_EXPORT void chaos_disable_effect(ChaosEffectEntity* entity) {
     }
 
     debug_log("Disabled '%s' effect in '%s' chaos machine.", entity->effect.name, machine->settings.name);
+}
+
+RECOMP_EXPORT void chaos_stop_effect(ChaosEffectEntity* entity) {
+    if (state != CHAOS_STATE_RUN) {
+        warning("Chaos effects can't be stopped before initalization!");
+    }
+
+    ChaosGroup* group = entity->owner;
+    ChaosMachine* machine = get_machine(group);
+
+    switch (entity->status) {
+        case CHAOS_EFFECT_STATUS_ACTIVE:
+            // TODO Check tags.
+            entity->status = CHAOS_EFFECT_STATUS_AVAILABLE;
+            active_list_queue_for_remove_entity(machine, group, entity);
+            debug_log("Stopped '%s' effect in '%s' chaos machine.", entity->effect.name, machine->settings.name);
+            break;
+        default:
+            break;
+    }
 }
 
 
