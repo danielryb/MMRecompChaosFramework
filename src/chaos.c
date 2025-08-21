@@ -383,9 +383,9 @@ static ChaosEffectEntity* pick_chaos_effect(ChaosGroup* group) {
 
 static void machine_perform_group_roll(ChaosMachine* machine, ChaosGroup* group, GAME_CTX_ARG) {
     ChaosEffectEntity* effect = pick_chaos_effect(group);
-    debug_log("Selected '%s' effect.\n\tEffect's weight after selection: %f.", effect->effect.name, get_effect_entity_weight(group, effect));
 
     if (effect != NULL) {
+        debug_log("Selected '%s' effect.\n\tEffect's weight after selection: %f.", effect->effect.name, get_effect_entity_weight(group, effect));
         active_list_add(machine, group, effect, GAME_CTX);
     }
 }
