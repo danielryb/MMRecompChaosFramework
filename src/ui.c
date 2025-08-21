@@ -23,8 +23,7 @@ void createUiFrame(RecompuiContext context, UiFrame* frame) {
     bg_color.r = 255;
     bg_color.g = 255;
     bg_color.b = 255;
-    bg_color.a = 0.1f * 255;
-
+    bg_color.a = 0;
 
     frame->root = recompui_context_root(context);
     // Set up the root element so it takes up the full screen.
@@ -246,6 +245,10 @@ void render_chaos_machines(void) {
 }
 
 RecompuiResource fab = 0;
+RecompuiResource disable_rolling_fab = 0;
+
+static const f32 fab_size = 56.0f;
+static const f32 fab_text_size = 24.0f;
 
 static const RecompuiColor fab_text_color = { 255, 255, 255, 255 };
 static const RecompuiColor fab_color = { 255, 255, 255, 255/4 };
@@ -253,41 +256,118 @@ static const RecompuiColor fab_color__hover = { 255, 255, 255, 255/3 };
 bool queue_toggle_ui = false;
 
 void handle_fab_events(RecompuiResource resource, const RecompuiEventData* event, void* userdata) {
+    static bool hovering = false;
+
     switch (event->type) {
         case UI_EVENT_CLICK:
             queue_toggle_ui = true;
+            if (hovering) {
+                bool will_open = !ui_open;
+                recompui_set_text(fab, will_open ? "Close menu •••" : "Open menu •••");
+            }
             break;
-        case UI_EVENT_HOVER:
-            recompui_set_background_color(fab, event->data.hover.active ? &fab_color__hover : &fab_color);
-            recompui_set_opacity(fab, event->data.hover.active ? 1.0f : 0.5f);
+        case UI_EVENT_HOVER: {
+            hovering = event->data.hover.active;
+            recompui_set_background_color(fab, hovering ? &fab_color__hover : &fab_color);
+            recompui_set_opacity(fab, hovering ? 1.0f : 0.5f);
+            if (hovering) {
+                recompui_set_text(fab, ui_open ? "Close menu •••" : "Open menu •••");
+            } else {
+                recompui_set_text(fab, "•••");
+            }
             break;
+        }
         default:
             break;
     }
 }
 
+void create_base_fab(RecompuiResource *fab_ctx) {
+    *fab_ctx = recompui_create_button(ui_context, chaos_frame.root, "•••", BUTTONSTYLE_SECONDARY);
+    recompui_set_position(*fab_ctx, POSITION_ABSOLUTE);
+    recompui_set_border_width(*fab_ctx, 0, UNIT_DP);
+    recompui_set_color(*fab_ctx, &fab_text_color);
+    recompui_set_padding_top(*fab_ctx, (fab_size - fab_text_size) / 2.0f, UNIT_DP);
+    recompui_set_padding_bottom(*fab_ctx, (fab_size - fab_text_size) / 2.0f, UNIT_DP);
+    recompui_set_padding_left(*fab_ctx, 0.0f, UNIT_DP);
+    recompui_set_padding_right(*fab_ctx, 0.0f, UNIT_DP);
+    recompui_set_font_size(*fab_ctx, fab_text_size, UNIT_DP);
+    recompui_set_line_height(*fab_ctx, fab_text_size, UNIT_DP);
+    recompui_set_text_align(*fab_ctx, TEXT_ALIGN_CENTER);
+    recompui_set_background_color(*fab_ctx, &fab_color);
+    recompui_set_border_radius(*fab_ctx, fab_size / 2.0f, UNIT_DP);
+
+    recompui_set_min_width(*fab_ctx, fab_size, UNIT_DP);
+    recompui_set_height(*fab_ctx, fab_size, UNIT_DP);
+} 
+
 void render_fab(void) {
-    static const f32 size = 56.0f;
-    static const f32 text_size = 24.0f;
-    fab = recompui_create_button(ui_context, chaos_frame.root, "•••", BUTTONSTYLE_SECONDARY);
-    recompui_set_position(fab, POSITION_ABSOLUTE);
-    recompui_set_border_width(fab, 0, UNIT_DP);
-    recompui_set_color(fab, &fab_text_color);
-    recompui_set_padding_top(fab, (size - text_size) / 2.0f, UNIT_DP);
-    recompui_set_padding_bottom(fab, (size - text_size) / 2.0f, UNIT_DP);
-    recompui_set_padding_left(fab, 0.0f, UNIT_DP);
-    recompui_set_padding_right(fab, 0.0f, UNIT_DP);
-    recompui_set_font_size(fab, text_size, UNIT_DP);
-    recompui_set_line_height(fab, text_size, UNIT_DP);
-    recompui_set_text_align(fab, TEXT_ALIGN_CENTER);
-    recompui_set_background_color(fab, &fab_color);
-    recompui_set_border_radius(fab, size / 2.0f, UNIT_DP);
-    recompui_set_opacity(fab, 0.5f);
+    create_base_fab(&fab);
     recompui_set_right(fab, 16.0f, UNIT_DP);
     recompui_set_bottom(fab, 16.0f, UNIT_DP);
-    recompui_set_width(fab, size, UNIT_DP);
-    recompui_set_height(fab, size, UNIT_DP);
+    recompui_set_opacity(fab, 0.5f);
+    recompui_set_padding_left(fab, 12, UNIT_DP);
+    recompui_set_padding_right(fab, 12, UNIT_DP);
+
     recompui_register_callback(fab, handle_fab_events, NULL);
+}
+
+bool queue_set_disable_rolling_fab_colors = false;
+bool hovering_disable_rolling_fab = false;
+void set_disable_rolling_fab_colors(void) {
+    if (!queue_set_disable_rolling_fab_colors) {
+        return;
+    }
+    queue_set_disable_rolling_fab_colors = false;
+
+    static const RecompuiColor disable_rolling_color_active = { 255, 0, 0, 255 };
+    static const RecompuiColor disable_rolling_color_inactive = { 127, 255, 255, 255 };
+    static const RecompuiColor disable_rolling_color_active_bg = { 255, 0, 0, 255/4 };
+    static const RecompuiColor disable_rolling_color_inactive_bg = { 127, 255, 255, 255/8 };
+    if (debug_disable_rolling) {
+        recompui_set_color(disable_rolling_fab, &disable_rolling_color_active);
+        if (hovering_disable_rolling_fab) {
+            recompui_set_text(disable_rolling_fab, "Enable rolling ✖");
+        } else {
+            recompui_set_background_color(disable_rolling_fab, &disable_rolling_color_active_bg);
+            recompui_set_text(disable_rolling_fab, "✖");
+        }
+    } else {
+        recompui_set_color(disable_rolling_fab, &disable_rolling_color_inactive);
+        if (hovering_disable_rolling_fab) {
+            recompui_set_text(disable_rolling_fab, "Disable rolling ⭕");
+        } else {
+            recompui_set_background_color(disable_rolling_fab, &disable_rolling_color_inactive_bg);
+            recompui_set_text(disable_rolling_fab, "⭕");
+        }
+    }
+}
+
+void handle_disable_rolling_fab_events(RecompuiResource resource, const RecompuiEventData* event, void* userdata) {
+    switch (event->type) {
+        case UI_EVENT_CLICK:
+            debug_disable_rolling = !debug_disable_rolling;
+            queue_set_disable_rolling_fab_colors = true;
+            break;
+        case UI_EVENT_HOVER: {
+            hovering_disable_rolling_fab = event->data.hover.active;
+            queue_set_disable_rolling_fab_colors = true;
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+void render_disable_rolling_fab(void) {
+    create_base_fab(&disable_rolling_fab);
+    recompui_set_right(disable_rolling_fab, 16.0f, UNIT_DP);
+    recompui_set_bottom(disable_rolling_fab, 16.0f + fab_size + 16, UNIT_DP);
+    recompui_set_padding_left(disable_rolling_fab, 12, UNIT_DP);
+    recompui_set_padding_right(disable_rolling_fab, 12, UNIT_DP);
+    queue_set_disable_rolling_fab_colors = true;
+
+    recompui_register_callback(disable_rolling_fab, handle_disable_rolling_fab_events, NULL);
 }
 
 void init_ui() {
@@ -297,6 +377,7 @@ void init_ui() {
         recompui_set_context_captures_input(ui_context, false);
         createUiFrame(ui_context, &chaos_frame);
         render_fab();
+        render_disable_rolling_fab();
         recompui_close_context(ui_context);
         recompui_show_context(ui_context);
         initialized_ui = true;
@@ -309,6 +390,7 @@ void toggle_ui(void) {
     if (ui_open) {
         recompui_open_context(ui_context);
         render_chaos_machines();
+        recompui_set_context_captures_input(ui_context, false);
         recompui_close_context(ui_context);
     } else {
         recompui_open_context(ui_context);
@@ -316,6 +398,7 @@ void toggle_ui(void) {
             recompui_destroy_element(chaos_frame.root, chaos_frame.container);
             chaos_frame.container = 0;
         }
+        recompui_set_context_captures_input(ui_context, false);
         recompui_close_context(ui_context);
     }
 }
@@ -339,10 +422,16 @@ void update_effect_buttons(void) {
     static const RecompuiColor inactive_color = { 0, 255, 255, 255 };
 
     if (!ui_open || all_contexts == NULL) {
+        if (initialized_ui) {
+            recompui_open_context(ui_context);
+            set_disable_rolling_fab_colors();
+            recompui_close_context(ui_context);
+        }
         return;
     }
     u32 num_effects = get_num_effects();
     recompui_open_context(ui_context);
+    set_disable_rolling_fab_colors();
 
     char buf[0x100];
     for (u32 i = 0; i < num_effects; i++) {
@@ -366,8 +455,10 @@ RECOMP_HOOK("Graph_ExecuteAndDraw") void on_check_toggle_ui(GraphicsContext* gfx
     if (chaos_is_player_active) {
         PlayState* play = (PlayState*)gameState;
         cur_play_state = play;
-        Input *input = CONTROLLER1(&play->state);
         init_ui();
+    }
+
+    if (initialized_ui) {
         if (queue_toggle_ui) {
             toggle_ui();
             queue_toggle_ui = false;
