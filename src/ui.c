@@ -290,9 +290,6 @@ void render_fab(void) {
     recompui_register_callback(fab, handle_fab_events, NULL);
 }
 
-void toggle_ui(void);
-
-
 void init_ui() {
     if (!initialized_ui) {
         ui_context = recompui_create_context();
