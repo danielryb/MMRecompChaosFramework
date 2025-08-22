@@ -10,7 +10,6 @@ typedef struct {
     RecompuiResource container;
 } UiFrame;
 UiFrame chaos_frame = {0, 0};
-static bool initialized_ui = false;
 static bool ui_open = false;
 
 const float modal_border_width = 1.1f;
@@ -370,17 +369,14 @@ void render_disable_rolling_fab(void) {
 }
 
 void init_ui() {
-    if (!initialized_ui) {
-        ui_context = recompui_create_context();
-        recompui_open_context(ui_context);
-        recompui_set_context_captures_input(ui_context, false);
-        createUiFrame(ui_context, &chaos_frame);
-        render_fab();
-        render_disable_rolling_fab();
-        recompui_close_context(ui_context);
-        recompui_show_context(ui_context);
-        initialized_ui = true;
-    }
+    ui_context = recompui_create_context();
+    recompui_open_context(ui_context);
+    recompui_set_context_captures_input(ui_context, false);
+    createUiFrame(ui_context, &chaos_frame);
+    render_fab();
+    render_disable_rolling_fab();
+    recompui_close_context(ui_context);
+    recompui_show_context(ui_context);
 }
 
 void toggle_ui(void) {
@@ -421,11 +417,9 @@ void update_effect_buttons(void) {
     static const RecompuiColor inactive_color = { 0, 255, 255, 255 };
 
     if (!ui_open || all_contexts == NULL) {
-        if (initialized_ui) {
-            recompui_open_context(ui_context);
-            set_disable_rolling_fab_colors();
-            recompui_close_context(ui_context);
-        }
+        recompui_open_context(ui_context);
+        set_disable_rolling_fab_colors();
+        recompui_close_context(ui_context);
         return;
     }
     u32 num_effects = get_num_effects();
@@ -450,18 +444,16 @@ void update_effect_buttons(void) {
     recompui_close_context(ui_context);
 }
 
-RECOMP_HOOK("Graph_ExecuteAndDraw") void on_check_toggle_ui(GraphicsContext* gfxCtx, GameState* gameState) {
-    if (chaos_is_player_active) {
-        init_ui();
-    }
+void debug_ui_init(void) {
+    init_ui();
+}
 
-    if (initialized_ui) {
-        if (queue_toggle_ui) {
-            toggle_ui();
-            queue_toggle_ui = false;
-        } else {
-            update_effect_buttons();
-        }
+void debug_ui_update(void) {
+    if (queue_toggle_ui) {
+        toggle_ui();
+        queue_toggle_ui = false;
+    } else {
+        update_effect_buttons();
     }
 }
 
