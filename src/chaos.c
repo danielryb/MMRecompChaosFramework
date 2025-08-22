@@ -14,8 +14,9 @@ ChaosState state;
 ChaosMachine* machines;
 u32 machine_count;
 
-bool debug_disable_rolling = false;
+GameCtx* _ctx = NULL;
 
+bool debug_disable_rolling = false;
 
 static const ChaosMachineSettings DEFAULT_MACHINE_SETTINGS = {
     .name = "*",
@@ -294,23 +295,23 @@ void chaos_init(void) {
     state = CHAOS_STATE_RUN;
 }
 
-static inline void effect_start(ChaosEffect* effect, GAME_CTX_ARG) {
+static inline void effect_start(ChaosEffect* effect, GameCtx* ctx) {
     if (effect->on_start_fun != NULL) {
-        effect->on_start_fun(GAME_CTX);
+        effect->on_start_fun(ctx);
     }
 
     debug_log("Effect '%s' started.", effect->name);
 }
 
-static inline void effect_update(ChaosEffect* effect, GAME_CTX_ARG) {
+static inline void effect_update(ChaosEffect* effect, GameCtx* ctx) {
     if (effect->update_fun != NULL) {
-        effect->update_fun(GAME_CTX);
+        effect->update_fun(ctx);
     }
 }
 
-static inline void effect_end(ChaosEffect* effect, GAME_CTX_ARG) {
+static inline void effect_end(ChaosEffect* effect, GameCtx* ctx) {
     if (effect->on_end_fun != NULL) {
-        effect->on_end_fun(GAME_CTX);
+        effect->on_end_fun(ctx);
     }
 
     debug_log("Effect '%s' ended.", effect->name);
@@ -343,7 +344,7 @@ static void active_list_queue_for_remove_entity(ChaosMachine* machine, ChaosGrou
     }
 }
 
-void active_list_add(ChaosMachine* machine, ChaosGroup* group, ChaosEffectEntity* entity, GAME_CTX_ARG) {
+void active_list_add(ChaosMachine* machine, ChaosGroup* group, ChaosEffectEntity* entity) {
     ActiveChaosEffectList* new = recomp_alloc(sizeof(ActiveChaosEffectList));
     if (new == NULL) {
         error("Couldn't alloc an active list element!");
@@ -362,10 +363,10 @@ void active_list_add(ChaosMachine* machine, ChaosGroup* group, ChaosEffectEntity
     }
 
     ChaosEffect* effect = &entity->effect;
-    effect_start(effect, GAME_CTX);
+    effect_start(effect, _ctx);
 }
 
-static void active_list_remove_after(ChaosMachine* machine, ChaosGroup* group, ActiveChaosEffectList* element, GAME_CTX_ARG) {
+static void active_list_remove_after(ChaosMachine* machine, ChaosGroup* group, ActiveChaosEffectList* element) {
     ActiveChaosEffectList* del;
 
     if (element == NULL) {
@@ -382,24 +383,24 @@ static void active_list_remove_after(ChaosMachine* machine, ChaosGroup* group, A
     entity->status = CHAOS_EFFECT_STATUS_AVAILABLE;
     update_weight_sums_upwards(group, entity);
 
-    effect_end(effect, GAME_CTX);
+    effect_end(effect, _ctx);
 
     recomp_free(del);
 }
 
 
-static void active_list_update(ChaosMachine* machine, GAME_CTX_ARG) {
+static void active_list_update(ChaosMachine* machine) {
     ActiveChaosEffectList* prev = NULL;
 
     for (ActiveChaosEffectList* cur = machine->active_effects; cur != NULL; cur = cur->next) {
         ChaosEffectEntity* entity = cur->effect;
         ChaosEffect* effect = &entity->effect;
 
-        effect_update(effect, GAME_CTX);
+        effect_update(effect, _ctx);
 
         if (cur->timer >= effect->duration) {
             ChaosGroup* group = cur->group;
-            active_list_remove_after(machine, group, prev, GAME_CTX);
+            active_list_remove_after(machine, group, prev);
             continue;
         }
         cur->timer++;
@@ -408,7 +409,7 @@ static void active_list_update(ChaosMachine* machine, GAME_CTX_ARG) {
     }
 }
 
-static void remove_list_process(ChaosMachine* machine, GAME_CTX_ARG) {
+static void remove_list_process(ChaosMachine* machine) {
     ActiveChaosEffectList* prev = NULL;
 
     ActiveChaosEffectList* cur = machine->remove_queue;
@@ -416,8 +417,8 @@ static void remove_list_process(ChaosMachine* machine, GAME_CTX_ARG) {
         ChaosEffectEntity* entity = cur->effect;
         ChaosEffect* effect = &entity->effect;
 
-        effect_update(effect, GAME_CTX);
-        effect_end(effect, GAME_CTX);
+        effect_update(effect, _ctx);
+        effect_end(effect, _ctx);
 
         ActiveChaosEffectList* tmp = cur;
         cur = cur->next;
@@ -459,16 +460,16 @@ static ChaosEffectEntity* pick_chaos_effect(ChaosGroup* group) {
     return choice;
 }
 
-static void machine_perform_group_roll(ChaosMachine* machine, ChaosGroup* group, GAME_CTX_ARG) {
+static void machine_perform_group_roll(ChaosMachine* machine, ChaosGroup* group) {
     ChaosEffectEntity* effect = pick_chaos_effect(group);
 
     if (effect != NULL) {
         debug_log("Selected '%s' effect.\n\tEffect's weight after selection: %f.", effect->effect.name, get_effect_entity_weight(group, effect));
-        active_list_add(machine, group, effect, GAME_CTX);
+        active_list_add(machine, group, effect);
     }
 }
 
-static void machine_perform_roll(ChaosMachine* machine, GAME_CTX_ARG) {
+static void machine_perform_roll(ChaosMachine* machine) {
     debug_log("Beginning roll in '%s' chaos machine.", machine->settings.name);
 
     ChaosGroup* group = pick_chaos_group(machine);
@@ -477,7 +478,7 @@ static void machine_perform_roll(ChaosMachine* machine, GAME_CTX_ARG) {
         ChaosDisturbance disturbance = get_group_disturbance(machine, group);
         debug_log("Selected %s disturbance group.\n\tGroup's probability after selection: %f.", DISTURBANCE_NAME[disturbance], group->probability);
 
-        machine_perform_group_roll(machine, group, GAME_CTX);
+        machine_perform_group_roll(machine, group);
     } else {
         debug_log("Roll landed on empty space.");
     }
@@ -485,18 +486,18 @@ static void machine_perform_roll(ChaosMachine* machine, GAME_CTX_ARG) {
     debug_log("Roll finished.");
 }
 
-static void machine_update(ChaosMachine* machine, GAME_CTX_ARG) {
+static void machine_update(ChaosMachine* machine) {
     u32 cycle_length = debug_disable_rolling ? 0 : machine->settings.cycle_length;
     if (cycle_length > 0) {
         machine->cycle_timer++;
         if (machine->cycle_timer >= cycle_length) {
-            machine_perform_roll(machine, GAME_CTX);
+            machine_perform_roll(machine);
             machine->cycle_timer = 0;
         }
     }
 
     while(machine->roll_requests > 0) {
-        machine_perform_roll(machine, GAME_CTX);
+        machine_perform_roll(machine);
         machine->roll_requests--;
     }
 
@@ -506,7 +507,7 @@ static void machine_update(ChaosMachine* machine, GAME_CTX_ARG) {
             debug_log("Beginning group roll in '%s' chaos machine's %s disturbance group.", machine->settings.name, DISTURBANCE_NAME[i]);
 
             ChaosGroup* group = &machine->groups[i];
-            machine_perform_group_roll(machine, group, GAME_CTX);
+            machine_perform_group_roll(machine, group);
 
             debug_log("Group roll finished.");
 
@@ -514,18 +515,20 @@ static void machine_update(ChaosMachine* machine, GAME_CTX_ARG) {
         }
     }
 
-    active_list_update(machine, GAME_CTX);
-    remove_list_process(machine, GAME_CTX);
+    active_list_update(machine);
+    remove_list_process(machine);
 }
 
-void chaos_update(GAME_CTX_ARG) {
+void chaos_update(GameCtx* ctx) {
+    _ctx = ctx;
+
     for (u32 i = 0; i < machine_count; i++) {
-        machine_update(&machines[i], GAME_CTX);
+        machine_update(&machines[i]);
     }
 }
 
 RECOMP_EXPORT void chaos_enable_effect(ChaosEffectEntity* entity) {
-    if (state != CHAOS_STATE_RUN) {
+    if (state < CHAOS_STATE_RUN) {
         warning("Chaos effects can't be enabled before initialization!");
     }
 
@@ -542,7 +545,7 @@ RECOMP_EXPORT void chaos_enable_effect(ChaosEffectEntity* entity) {
 }
 
 RECOMP_EXPORT void chaos_disable_effect(ChaosEffectEntity* entity) {
-    if (state != CHAOS_STATE_RUN) {
+    if (state < CHAOS_STATE_RUN) {
         warning("Chaos effects can't be disabled before initalization!");
     }
 
@@ -567,7 +570,7 @@ RECOMP_EXPORT void chaos_disable_effect(ChaosEffectEntity* entity) {
 }
 
 RECOMP_EXPORT void chaos_stop_effect(ChaosEffectEntity* entity) {
-    if (state != CHAOS_STATE_RUN) {
+    if (state < CHAOS_STATE_RUN) {
         warning("Chaos effects can't be stopped before initalization!");
     }
 
@@ -588,21 +591,21 @@ RECOMP_EXPORT void chaos_stop_effect(ChaosEffectEntity* entity) {
 
 
 RECOMP_EXPORT void chaos_request_roll(ChaosMachine* machine) {
-    if (state != CHAOS_STATE_RUN) {
+    if (state < CHAOS_STATE_RUN) {
         warning("Can't request chaos effect rolls before initalization!");
     }
 
-    machine->roll_requests++;
+    machine_perform_roll(machine);
 
     debug_log("Requested roll in '%s' chaos machine.", machine->settings.name);
 }
 
 RECOMP_EXPORT void chaos_request_group_roll(ChaosMachine* machine, ChaosDisturbance disturbance) {
-    if (state != CHAOS_STATE_RUN) {
+    if (state < CHAOS_STATE_RUN) {
         warning("Can't request chaos effect rolls before initalization!");
     }
 
-    machine->group_roll_requests[disturbance]++;
+    machine_perform_group_roll(machine, &machine->groups[disturbance]);
 
     debug_log("Requested roll in %s disturbance group in '%s' chaos machine.", machine->settings.name);
 }

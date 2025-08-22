@@ -7,11 +7,10 @@
 #include "recomputils.h"
 #include "global.h"
 
-#define GAME_CTX_ARG PlayState* play
-#define GAME_CTX play
+typedef PlayState GameCtx;
 
 void chaos_init(void);
-void chaos_update(GAME_CTX_ARG);
+void chaos_update(GameCtx* play);
 
 extern bool chaos_is_player_active;
 
@@ -20,7 +19,7 @@ extern bool chaos_is_player_active;
 
 #define INITIAL_MACHINE_COUNT 1
 
-typedef void (*ChaosFunction)(GAME_CTX_ARG);
+typedef void (*ChaosFunction)(GameCtx* play);
 
 typedef enum {
     CHAOS_DISTURBANCE_VERY_LOW,
@@ -116,6 +115,6 @@ extern u32 machine_count;
 extern bool debug_disable_rolling;
 extern const char* DISTURBANCE_NAME[CHAOS_DISTURBANCE_MAX];
 
-void active_list_add(ChaosMachine* machine, ChaosGroup* group, ChaosEffectEntity* entity, GAME_CTX_ARG);
+void active_list_add(ChaosMachine* machine, ChaosGroup* group, ChaosEffectEntity* entity);
 
 #endif /* __CHAOS_H__ */

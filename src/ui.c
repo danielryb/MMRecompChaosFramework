@@ -12,7 +12,6 @@ typedef struct {
 UiFrame chaos_frame = {0, 0};
 static bool initialized_ui = false;
 static bool ui_open = false;
-PlayState* cur_play_state = NULL;
 
 const float modal_border_width = 1.1f;
 const float modal_border_radius = 16.0f;
@@ -71,7 +70,7 @@ void create_container(RecompuiContext context, UiFrame* frame) {
     recompui_set_position(frame->container, POSITION_ABSOLUTE);
     recompui_set_padding(frame->container, 16.0f, UNIT_DP);
     recompui_set_align_items(frame->container, ALIGN_ITEMS_STRETCH);
-    
+
     // Set up the container to be the modal's background.
     recompui_set_border_width(frame->container, modal_border_width, UNIT_DP);
     recompui_set_border_radius(frame->container, modal_border_radius, UNIT_DP);
@@ -142,7 +141,7 @@ void handle_invoke_effect(RecompuiResource resource, const RecompuiEventData* ev
         ChaosClickContext* context = (ChaosClickContext*)userdata;
         ChaosEffectEntity* effect = context->effect;
         if (effect->status == CHAOS_EFFECT_STATUS_AVAILABLE) {
-            active_list_add(context->machine, context->group, context->effect, cur_play_state);
+            active_list_add(context->machine, context->group, context->effect);
         }
     }
 }
@@ -180,7 +179,7 @@ void render_chaos_effect(ChaosEffectEntity* effect, ChaosGroup* group, ChaosMach
             recompui_set_max_width(click_context->row.label, 280, UNIT_DP);
             recompui_set_overflow_x(click_context->row.label, OVERFLOW_HIDDEN);
         }
-    
+
         click_context->row.button = recompui_create_button(
             ui_context,
             click_context->row.container,
@@ -195,7 +194,7 @@ void render_chaos_effect(ChaosEffectEntity* effect, ChaosGroup* group, ChaosMach
             recompui_set_line_height(click_context->row.button, button_text_size, UNIT_DP);
             recompui_set_text_align(click_context->row.button, TEXT_ALIGN_CENTER);
             recompui_set_padding(click_context->row.button, (button_size - button_text_size) / 2.0f, UNIT_DP);
-    
+
             recompui_register_callback(click_context->row.button, handle_invoke_effect, click_context);
         }
 
@@ -299,7 +298,7 @@ void create_base_fab(RecompuiResource *fab_ctx) {
 
     recompui_set_min_width(*fab_ctx, fab_size, UNIT_DP);
     recompui_set_height(*fab_ctx, fab_size, UNIT_DP);
-} 
+}
 
 void render_fab(void) {
     create_base_fab(&fab);
@@ -453,8 +452,6 @@ void update_effect_buttons(void) {
 
 RECOMP_HOOK("Graph_ExecuteAndDraw") void on_check_toggle_ui(GraphicsContext* gfxCtx, GameState* gameState) {
     if (chaos_is_player_active) {
-        PlayState* play = (PlayState*)gameState;
-        cur_play_state = play;
         init_ui();
     }
 
