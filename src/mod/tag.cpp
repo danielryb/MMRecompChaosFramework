@@ -76,8 +76,7 @@ namespace Chaos {
             for (const std::string& tagname : tagnames) {
                 combo.push_back(get_tag_id(tagname));
             }
-            // TODO Replace.
-            // std::sort(combo.begin(), combo.end());
+            std::sort(combo.begin(), combo.end());
 
             return get_combo_id(std::move(combo));
         }
