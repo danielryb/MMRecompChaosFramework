@@ -9,17 +9,19 @@
                 "${workspaceFolder}/mm-decomp/src",
                 "${workspaceFolder}/mm-decomp/extracted/n64-us",
                 "${workspaceFolder}/mm-decomp/expected/build/n64-us",
-                "${workspaceFolder}/data/generated",
-                "${workspaceFolder}/src"
+                "${workspaceFolder}/src",
+                "${workspaceFolder}/src/mod"
             ],
             "defines": [
                 "F3DEX_GBI_2",
                 "_LANGUAGE_C",
-                "MIPS"
+                "MIPS",
+                "_HAS_EXCEPTIONS=0"
             ],
             "compilerPath": "clang",
             "cStandard": "c99",
-            "intelliSenseMode": "clang-x86"
+            "cppStandard": "c++20",
+            "intelliSenseMode": "clang-x64"
         }
     ],
     "version": 4
