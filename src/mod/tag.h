@@ -12,8 +12,8 @@ namespace Chaos {
         using tag_id = int;
         using combo_id = int;
 
-        combo_id get_combo_id(const std::vector<std::string>& tagnames);
-        combo_id get_combo_id(const char** tagnames, size_t tagcount);
+        combo_id get_combo_id(const std::vector<std::string>& tag_names);
+        combo_id get_combo_id(const char* tag_names[], size_t tag_count);
         std::vector<tag_id> expand_combo(combo_id id);
 
         std::unordered_set<combo_id> reserve_combo(combo_id id);

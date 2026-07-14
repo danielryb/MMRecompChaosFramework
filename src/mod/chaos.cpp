@@ -149,7 +149,7 @@ namespace Chaos {
     }
 
     ChaosEffectEntity* register_effect(ChaosMachine* machine, const ChaosEffect& effect,
-            Disturbance disturbance, const char** tagnames, size_t tagcount) {
+            Disturbance disturbance, const char* tag_names[], size_t tag_count) {
         if (disturbance >= Disturbance::MAX) {
             warning("Invalid disturbance provided!");
             return NULL;
@@ -158,13 +158,13 @@ namespace Chaos {
         switch (state) {
             case State::EFFECT_COUNT: {
                 ChaosGroup& group = machine->get_group(disturbance);
-                Tag::combo_id combo = Tag::get_combo_id(tagnames, tagcount);
+                Tag::combo_id combo = Tag::get_combo_id(tag_names, tag_count);
                 group.reserve_effect_slot(combo);
                 break;
             }
             case State::EFFECT_REGISTER: {
                 ChaosGroup& group = machine->get_group(disturbance);
-                Tag::combo_id combo = Tag::get_combo_id(tagnames, tagcount);
+                Tag::combo_id combo = Tag::get_combo_id(tag_names, tag_count);
                 u32 i = group.reserve_effect_slot(combo);
                 ChaosEffectEntity& entity = group.get_effect(combo, i);
 
@@ -224,7 +224,7 @@ namespace Chaos {
             ChaosMachineSettings& machine_settings = machine.get_settings();
             for (int j = 0; j < Disturbance::MAX; j++) {
                 ChaosGroup& group = machine.get_group(Disturbance(j));
-                total_count += group.get_effect_count();
+                total_count += group.size();
             }
 
             debug_log("Detected %d chaos effect registration%s to '%s'.",
@@ -314,7 +314,7 @@ namespace Chaos {
         return machine_count;
     }
 
-    void activate_subgroups(std::unordered_set<Tag::combo_id> subgroups) {
+    void activate_subgroups(const std::unordered_set<Tag::combo_id>& subgroups) {
         for (u32 i = 0; i < machine_count; i++) {
             ChaosMachine& machine = (*machines)[i];
             for (int j = 0; j < Disturbance::MAX; j++) {
@@ -326,7 +326,7 @@ namespace Chaos {
         }
     }
 
-    void deactivate_subgroups(std::unordered_set<Tag::combo_id> subgroups) {
+    void deactivate_subgroups(const std::unordered_set<Tag::combo_id>& subgroups) {
         for (u32 i = 0; i < machine_count; i++) {
             ChaosMachine& machine = (*machines)[i];
             for (int j = 0; j < Disturbance::MAX; j++) {
@@ -360,13 +360,13 @@ namespace Chaos {
 
     RECOMP_EXPORT ChaosEffectEntity* chaos_register_effect_to(
             ChaosMachine* machine, const ChaosEffect* effect,
-            Disturbance disturbance, const char** tag_names, size_t tag_count) {
+            Disturbance disturbance, const char* tag_names[], size_t tag_count) {
         return register_effect(machine, *effect, disturbance, tag_names, tag_count);
     }
 
     RECOMP_EXPORT ChaosEffectEntity* chaos_register_effect(
             const ChaosEffect* effect, Disturbance disturbance,
-            const char** tag_names, size_t tag_count) {
+            const char* tag_names[], size_t tag_count) {
         return register_effect(
             get_machine_or_null(0), *effect, disturbance, tag_names, tag_count);
     }

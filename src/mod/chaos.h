@@ -82,9 +82,9 @@ namespace Chaos {
 
 
     typedef struct {
-        f32 initial_probability;
-        f32 on_pick_multiplier;
-        f32 winner_weight_share;
+        double initial_probability;
+        double on_pick_multiplier;
+        double winner_weight_share;
     } ChaosGroupSettings;
 
     typedef struct {
@@ -101,9 +101,9 @@ namespace Chaos {
         struct EffectSubtree {
             struct Node {
                 ChaosEffectEntity effect;
-                f32 weight_deviation = 0.0;
-                f32 left_deviation_sum = 0.0; // sum of weight deviations of active
-                                        // weights in left subtree.
+                double weight_deviation = 0.0;
+                double left_deviation_sum = 0.0; // sum of weight deviations of active
+                                                 // nodes in left subtree.
                 size_t left_count = 0;      // number of active nodes in left subtree.
                 bool is_active = true;
             };
@@ -114,53 +114,53 @@ namespace Chaos {
             size_t size_ = 0;
             std::unique_ptr<Node[]> nodes;
             size_t count = 0;
-            f32 deviation_sum = 0;
+            double deviation_sum = 0;
 
             EffectSubtree(EffectTree& owner) : owner(owner) {};
 
             // size_t size();
-            f32 get_weight(Node& node);
-            f32 get_left_weight(Node& node);
+            double get_weight(Node& node);
+            double get_left_weight(Node& node);
 
             size_t reserve_slot();
             void reset_size();
             void alloc_nodes();
 
             bool is_counted(Node& node);
-            f32 get_deviation(Node& node);
+            double get_deviation(Node& node);
             void init_tree();
-            void update_deviations_upwards(Node& start, f32 delta);
-            void update_counts_upwards(Node& start, size_t delta);
+            void update_deviations_upwards(Node& node, double delta);
+            void update_count(Node& node, size_t delta);
 
-            Node& get_node(f32 weight);
+            Node& get_node(double weight);
             size_t get_pos(Node& node);
         };
 
         struct EffectTree {
             struct Info {
-                f32 left_deviation_sum; // sum of weight deviations of active
-                                        // weights in left subtree.
+                double left_deviation_sum; // sum of weight deviations of active
+                                           // weights in left subtree.
                 size_t left_count;      // number of active nodes in left subtree.
             };
 
             union Node {
-                Info info;
-                Tag::combo_id combo;
+                Info info; // inner nodes.
+                Tag::combo_id combo; // leaves.
             };
 
             std::unique_ptr<Node[]> nodes;
             size_t count = 0;
-            f32 deviation_sum = 0;
-            f32 shared_weight = 1.0f; // per effect
+            double deviation_sum = 0;
+            double shared_weight = 1.0; // per effect.
             std::unordered_map<Tag::combo_id, EffectSubtree> combo_subgroups;
             std::unordered_map<Tag::combo_id, size_t> subgroup_tree_pos;
 
             size_t total_effect_count;
 
             size_t size();
-            f32 get_weight(EffectSubtree::Node& node);
-            f32 get_weight_sum();
-            f32 get_left_weight(Node& node);
+            double get_weight(EffectSubtree::Node& node);
+            double get_weight_sum();
+            double get_left_weight(Node& node);
 
             size_t reserve_slot(Tag::combo_id combo);
             void reset_size();
@@ -168,47 +168,51 @@ namespace Chaos {
 
             bool is_counted(Tag::combo_id combo);
             void init_tree();
-            void update_deviations_upwards(Tag::combo_id combo, f32 delta);
-            void update_counts_upwards(Tag::combo_id combo, size_t delta);
+            void update_deviations_upwards(Tag::combo_id combo, double delta);
+            void update_count(Tag::combo_id combo, size_t delta);
             void update_deviations_upwards(
-                EffectSubtree::Node& start, EffectSubtree& subgroup, f32 delta);
+                EffectSubtree::Node& node, EffectSubtree& subgroup, double delta);
             void update_counts_upwards(
                 EffectSubtree::Node& start, EffectSubtree& subgroup, size_t delta);
 
             ChaosGroup::EffectSubtree& get_subgroup(Tag::combo_id combo);
-            ChaosGroup::EffectSubtree& get_subgroup(f32 weight);
-            void share_weight(EffectSubtree::Node& node, EffectSubtree& subgroup, f32 share);
+            ChaosGroup::EffectSubtree& get_subgroup(double weight, double* local_weight_out = nullptr);
+            void share_weight(EffectSubtree::Node& node, EffectSubtree& subgroup, double share);
             void activate_node(EffectSubtree::Node& node, EffectSubtree& subgroup);
             void deactivate_node(EffectSubtree::Node& node, EffectSubtree& subgroup);
             void activate_subgroup(Tag::combo_id combo);
             void deactivate_subgroup(Tag::combo_id combo);
+            void reduce_weight_share_error();
+            void normalize_weight_share();
         };
 
         ChaosGroupSettings settings;
-        f32 probability;
+        double probability;
 
         EffectTree tree;
 
     public:
         ChaosGroup(const ChaosGroupSettings& settings);
 
-        f32 get_probability() const;
+        double get_probability() const;
         void apply_on_pick_multiplier();
 
-        u32 get_effect_count() const;
+        size_t size() const;
+        size_t get_effect_count() const;
         void reset_effect_count();
         size_t reserve_effect_slot(Tag::combo_id combo);
         void alloc_effect_slots();
 
         ChaosEffectEntity& get_effect(Tag::combo_id combo, size_t pos);
-        f32 get_effect_weight(ChaosEffectEntity& effect);
+        double get_effect_weight(ChaosEffectEntity& effect);
 
         void init_tree();
-        f32 get_weight_sum();
-        ChaosEffectEntity& get_effect_entity_by_weight(f32 weight);
-        ChaosEffectEntity& get_effect_entity_by_weight(EffectSubtree& tree, f32 weight);
+        double get_weight_sum();
+        ChaosEffectEntity& get_effect_entity_by_weight(double weight);
+        ChaosEffectEntity& get_effect_entity_by_weight(EffectSubtree& tree, double weight);
 
         ChaosEffectEntity& pick_effect();
+        ChaosEffectEntity& pick_effect(double weight);
         void set_effect_status(ChaosEffectEntity& effect, ChaosEffectStatus status);
         void activate_subgroup(Tag::combo_id combo);
         void deactivate_subgroup(Tag::combo_id combo);
@@ -278,7 +282,7 @@ namespace Chaos {
     ChaosMachine* register_machine(const ChaosMachineSettings& settings);
     ChaosEffectEntity* register_effect(
         ChaosMachine* machine, const ChaosEffect& effect, Disturbance disturbance,
-        const char** tagnames, size_t tagcount);
+        const char* tag_names[], size_t tag_count);
 
     void init();
 
@@ -291,8 +295,8 @@ namespace Chaos {
 
     size_t get_machine_count();
 
-    void activate_subgroups(std::unordered_set<Tag::combo_id> subgroups);
-    void deactivate_subgroups(std::unordered_set<Tag::combo_id> subgroups);
+    void activate_subgroups(const std::unordered_set<Tag::combo_id>& subgroups);
+    void deactivate_subgroups(const std::unordered_set<Tag::combo_id>& subgroups);
 
     extern const char* DISTURBANCE_NAME[];
     extern bool debug_disable_rolling;

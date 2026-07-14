@@ -44,11 +44,11 @@ typedef void ChaosMachine;
 RECOMP_IMPORT("mm_recomp_chaos_framework",
     ChaosEffectEntity* chaos_register_effect_to(
         ChaosMachine* machine, const ChaosEffect* effect, ChaosDisturbance disturbance,
-        const char** tag_names, size_t tag_count))
+        const char* tag_names[], size_t tag_count))
 RECOMP_IMPORT("mm_recomp_chaos_framework",
     ChaosEffectEntity* chaos_register_effect(
         const ChaosEffect* effect, ChaosDisturbance disturbance,
-        const char** tag_names, size_t tag_count))
+        const char* tag_names[], size_t tag_count))
 
 RECOMP_IMPORT("mm_recomp_chaos_framework",
     ChaosMachine* chaos_register_machine(const ChaosMachineSettings* settings))

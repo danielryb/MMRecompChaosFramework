@@ -25,11 +25,11 @@ namespace Chaos {
     }
 
     ChaosGroup* ChaosMachine::pick_group() {
-        f32 rand = Rand_ZeroOne();
+        double rand = Rand_ZeroOne();
 
         for (int i = 0; i < Disturbance::MAX; i++) {
             ChaosGroup& group = groups[i];
-            f32 group_probability = group.get_probability();
+            double group_probability = group.get_probability();
 
             if ((rand < group_probability) && (group.get_effect_count() > 0)) {
                 group.apply_on_pick_multiplier();

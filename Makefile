@@ -29,7 +29,7 @@ CXXFLAGS := $(ARCHFLAGS) $(WARNFLAGS) -D_LANGUAGE_C_PLUS_PLUS -stdlib=libc++ -fn
              -ferror-limit=1000
 CPPFLAGS := -DMIPS -DF3DEX_GBI_2 -DF3DEX_GBI_PL -DGBI_DOWHILE -I include -I include/dummy_headers \
             -I mm-decomp/include -I mm-decomp/src -I mm-decomp/extracted/n64-us -idirafter include/libc -idirafter mm-decomp/include/libc \
-            -I src -Wno-constant-conversion -I src/mod
+            -I src -I src/mod -Wno-constant-conversion
 LDFLAGS  := -nostdlib -T $(LDSCRIPT) -Map $(BUILD_DIR)/mod.map --unresolved-symbols=ignore-all --emit-relocs -e 0 --no-nmagic -gc-sections
 
 ifeq ($(DEBUG), 1)

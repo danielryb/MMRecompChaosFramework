@@ -20,7 +20,7 @@ namespace Chaos {
         std::map<std::vector<tag_id>, combo_id> combos;
         std::vector<std::vector<tag_id>> expanded_combos; // combo -> expanded combo
                                                           // in the form of vector<tag>.
-        std::vector<std::vector<combo_id>> related_combos;  // tag -> vector of combos
+        std::vector<std::vector<combo_id>> related_combos;  // tag -> vector of combo ids
                                                             // containing this tag.
         std::vector<bool> tag_reservations;
 
@@ -52,7 +52,7 @@ namespace Chaos {
 
             if (prev_next_id != next_tag_id) {
                 related_combos.emplace_back();
-                tag_reservations.push_back(false);
+                tag_reservations.push_back(0);
             }
             return id;
         }
@@ -70,10 +70,10 @@ namespace Chaos {
             return id;
         }
 
-        combo_id get_combo_id(const std::vector<std::string>& tagnames) {
+        combo_id get_combo_id(const std::vector<std::string>& tag_names) {
             std::vector<tag_id> combo;
 
-            for (const std::string& tagname : tagnames) {
+            for (const std::string& tagname : tag_names) {
                 combo.push_back(get_tag_id(tagname));
             }
             std::sort(combo.begin(), combo.end());
@@ -81,14 +81,14 @@ namespace Chaos {
             return get_combo_id(std::move(combo));
         }
 
-        combo_id get_combo_id(const char** tagnames, size_t tagcount) {
-            if (tagcount == 0) {
+        combo_id get_combo_id(const char* tag_names[], size_t tag_count) {
+            if (tag_count == 0) {
                 return 0;
             }
 
             std::vector<std::string> vec;
-            for (size_t i = 0; i < tagcount; i++) {
-                const char* tagname = tagnames[tagcount];
+            for (size_t i = 0; i < tag_count; i++) {
+                const char* tagname = tag_names[i];
                 vec.emplace_back(tagname);
             }
             return get_combo_id(vec);
@@ -100,7 +100,8 @@ namespace Chaos {
         }
 
 
-        std::unordered_set<combo_id> modify_reservations(combo_id id, bool val) {
+        template <bool V>
+        std::unordered_set<combo_id> modify_reservations(combo_id id) {
             std::unordered_set<combo_id> affected_combos;
 
             if (id == 0) {
@@ -109,24 +110,34 @@ namespace Chaos {
 
             auto& expanded_combo = expanded_combos[get_combo_pos(id)];
             for (auto tag : expanded_combo) {
-                tag_reservations[get_tag_pos(tag)] = val;
+                size_t tag_pos = get_tag_pos(tag);
+                bool prev_V = tag_reservations[tag_pos];
 
-                // this could be replaced with a function which maps
-                // combo -> vector of related combos (sharing at least one tag).
-                // TODO consider.
                 auto& related = related_combos[get_tag_pos(tag)];
-                affected_combos.insert(related.begin(), related.end());
+                for (auto combo : related) {
+                    tag_reservations[tag_pos] = prev_V;
+                    bool prev = is_combo_allowed(combo);
+
+                    tag_reservations[tag_pos] = V;
+                    bool cur = is_combo_allowed(combo);
+
+                    if (prev != cur) {
+                        affected_combos.insert(combo);
+                    }
+                }
+
+                tag_reservations[tag_pos] = V;
             }
 
             return affected_combos;
         }
 
         std::unordered_set<combo_id> reserve_combo(combo_id id) {
-            return modify_reservations(id, true);
+            return modify_reservations<true>(id);
         }
 
         std::unordered_set<combo_id> free_combo(combo_id id) {
-            return modify_reservations(id, false);
+            return modify_reservations<false>(id);
         }
 
         bool is_combo_allowed(combo_id id) {
