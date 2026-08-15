@@ -48,7 +48,7 @@ void test_tree_weights() {
 
     group.init_tree();
 
-    group.pick_effect(4.0);
+    group.pick_effect_by_weight(4.0);
 
     assert(group.get_weight_sum() == 5.0);
 }
@@ -142,6 +142,8 @@ void test_status_change() {
         .on_start_fun = NULL,
         .update_fun = NULL,
         .on_end_fun = NULL,
+        .on_pause_fun = NULL,
+        .on_unpause_fun = NULL,
     };
 
     Chaos::set_on_init([&]() {

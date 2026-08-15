@@ -441,12 +441,15 @@ namespace Chaos {
     }
 
 
-    ChaosEffectEntity& ChaosGroup::pick_effect() {
-        double weight = Rand_ZeroOne() * get_weight_sum();
-        return pick_effect(weight);
+    ChaosEffectEntity& ChaosGroup::pick_effect(double rand) {
+        if ((rand < 0) || (rand > 1)) {
+            rand = Rand_ZeroOne();
+        }
+        double weight = rand * get_weight_sum();
+        return pick_effect_by_weight(weight);
     }
 
-    ChaosEffectEntity& ChaosGroup::pick_effect(double weight) {
+    ChaosEffectEntity& ChaosGroup::pick_effect_by_weight(double weight) {
         double local_weight;
         EffectSubtree& subgroup = tree.get_subgroup(weight, &local_weight);
         EffectSubtree::Node& node = subgroup.get_node(local_weight);

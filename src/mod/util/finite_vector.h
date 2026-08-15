@@ -18,6 +18,12 @@ public:
     finite_vector(std::size_t max_size)
     : max_size_(max_size), arr(std::make_unique<aligned_T[]>(max_size)) {}
 
+    ~finite_vector() {
+        for (std::size_t i = 0; i < size_; i++) {
+            (*this)[i].~T();
+        }
+    }
+
     T& operator[](std::size_t idx) {
         return *std::launder(reinterpret_cast<T*>(&arr[idx]));
     }

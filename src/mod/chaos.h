@@ -25,6 +25,10 @@ typedef PlayState GameCtx;
 
 void chaos_init(void);
 void chaos_update(GameCtx* play);
+void chaos_execute_fun_queues(void);
+
+void chaos_forbid_tag(const char* tag);
+void chaos_allow_tag(const char* tag);
 
 extern bool chaos_is_player_active;
 
@@ -61,6 +65,8 @@ namespace Chaos {
         ChaosFunction on_start_fun;
         ChaosFunction update_fun;
         ChaosFunction on_end_fun;
+        ChaosFunction on_pause_fun;
+        ChaosFunction on_unpause_fun;
     } ChaosEffect;
 
 
@@ -211,8 +217,8 @@ namespace Chaos {
         ChaosEffectEntity& get_effect_entity_by_weight(double weight);
         ChaosEffectEntity& get_effect_entity_by_weight(EffectSubtree& tree, double weight);
 
-        ChaosEffectEntity& pick_effect();
-        ChaosEffectEntity& pick_effect(double weight);
+        ChaosEffectEntity& pick_effect(double rand = -1);
+        ChaosEffectEntity& pick_effect_by_weight(double weight);
         void set_effect_status(ChaosEffectEntity& effect, ChaosEffectStatus status);
         void activate_subgroup(Tag::combo_id combo);
         void deactivate_subgroup(Tag::combo_id combo);
@@ -233,6 +239,7 @@ namespace Chaos {
 
         std::unique_ptr<Node> root;
         std::unique_ptr<Node> remove_root;
+        std::unique_ptr<Node> pause_root;
 
     public:
         void queue_for_remove_entity(ChaosEffectEntity& entity);
@@ -241,9 +248,16 @@ namespace Chaos {
         void update();
         void empty_remove_queue();
 
+        void pause_effects(const std::unordered_set<Tag::combo_id>& affected_combos);
+        void unpause_effects(const std::unordered_set<Tag::combo_id>& affected_combos);
+
     private:
-        void queue_for_remove_after(Node* element);
-        void remove_after(ChaosGroup& group, Node* element);
+        void move_node(
+            std::unique_ptr<Node>& from_root, std::unique_ptr<Node>& to_root, Node* element);
+        void move_nodes(
+            std::unique_ptr<Node>& from_root,std::unique_ptr<Node>& to_root,
+            const std::unordered_set<Tag::combo_id>& affected_combos);
+        void remove_after(Node* element);
     };
 
     class ChaosMachine {
@@ -261,17 +275,20 @@ namespace Chaos {
         ChaosMachineSettings& get_settings();
         Disturbance get_group_disturbance(ChaosGroup* group) const;
         ChaosGroup& get_group(Disturbance disturbance);
-        ChaosGroup* pick_group();
+        ChaosGroup* pick_group(double rand = -1);
 
-        void perform_roll(ChaosGroup& group);
-        void perform_roll(Disturbance disturbance);
-        void perform_roll();
+        void perform_roll(ChaosGroup& group, double rand = -1);
+        void perform_roll(Disturbance disturbance, double rand = -1);
+        void perform_roll(double group_rand = -1, double effect_rand = -1);
 
         void update();
 
         void enable_effect(ChaosEffectEntity& entity);
         void disable_effect(ChaosEffectEntity& entity);
         void stop_effect(ChaosEffectEntity& entity);
+
+        void pause_effects(const std::unordered_set<Tag::combo_id>& affected_combos);
+        void unpause_effects(const std::unordered_set<Tag::combo_id>& affected_combos);
     };
 
 
@@ -279,24 +296,30 @@ namespace Chaos {
     ChaosMachine& get_machine(ChaosGroup& group);
     ChaosMachine* get_machine_or_null(size_t pos) noexcept;
 
+    void register_tag(const char* tag, size_t limit);
     ChaosMachine* register_machine(const ChaosMachineSettings& settings);
     ChaosEffectEntity* register_effect(
         ChaosMachine* machine, const ChaosEffect& effect, Disturbance disturbance,
         const char* tag_names[], size_t tag_count);
 
     void init();
+    void update(GameCtx* ctx);
 
     void enable_effect(ChaosEffectEntity& entity);
     void disable_effect(ChaosEffectEntity& entity);
     void stop_effect(ChaosEffectEntity& entity);
 
-    void request_roll(ChaosMachine& machine);
-    void request_roll(ChaosMachine& machine, Disturbance disturbance);
+    void request_roll(ChaosMachine& machine, double group_rand = -1, double effect_rand = -1);
+    void request_roll(ChaosMachine& machine, Disturbance disturbance, double rand = -1);
 
     size_t get_machine_count();
 
     void activate_subgroups(const std::unordered_set<Tag::combo_id>& subgroups);
     void deactivate_subgroups(const std::unordered_set<Tag::combo_id>& subgroups);
+
+    void queue_pause_fun(ChaosEffect* effect);
+    void queue_unpause_fun(ChaosEffect* effect);
+    void execute_fun_queues();
 
     extern const char* DISTURBANCE_NAME[];
     extern bool debug_disable_rolling;

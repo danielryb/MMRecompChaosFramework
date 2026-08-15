@@ -17,7 +17,7 @@ else
 endif
 
 #TARGET  := $(BUILD_DIR)/mod.elf
-DEBUG   := 1
+DEBUG   := 0
 
 SOURCE_DIR := ../src
 

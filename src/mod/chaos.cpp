@@ -1,4 +1,5 @@
 #include "chaos.h"
+#include "tag_names.h"
 #include "util/static_vector.h"
 #include "util/finite_vector.h"
 
@@ -77,6 +78,9 @@ namespace Chaos {
     std::unique_ptr<finite_vector<ChaosMachine>> machines;
     u32 machine_count = 0;
 
+    std::unordered_set<ChaosEffect*> pause_fun_queue;
+    std::unordered_set<ChaosEffect*> unpause_fun_queue;
+
     void alloc_effect_slots() {
         for (u32 i = 0; i < machine_count; i++) {
             ChaosMachine& machine = (*machines)[i];
@@ -100,7 +104,11 @@ namespace Chaos {
     void call_init_callback() {
         reset_effect_counts();
         machine_count = 0;
+
         register_machine(DEFAULT_MACHINE_SETTINGS);
+        register_tag(CHAOS_TAG_PLAYER_INACTIVE, SIZE_MAX);
+        register_tag(CHAOS_TAG_CUTSCENE, SIZE_MAX);
+
         chaos_on_init();
     }
 
@@ -119,6 +127,20 @@ namespace Chaos {
             return nullptr;
         }
         return &(*machines)[pos];
+    }
+
+
+    void register_tag(const char* tag, size_t limit) {
+        if ((state == State::RUN) || (state == State::DEFAULT)) {
+            warning("Reservation limit can be changed only during the initalization!");
+            return;
+        } else if (state > State::MACHINE_COUNT) {
+            return;
+        }
+
+        if (!Tag::add_tag(tag, limit)) {
+            error("Tag '%s' has already been defined!", tag);
+        }
     }
 
     ChaosMachine* register_machine(const ChaosMachineSettings& settings) {
@@ -189,6 +211,8 @@ namespace Chaos {
     }
 
     void init() {
+        Tag::clear();
+
         state = State::MACHINE_COUNT;
 
         call_init_callback();
@@ -256,6 +280,16 @@ namespace Chaos {
         state = State::RUN;
     }
 
+    void update(GameCtx* ctx) {
+        _ctx = ctx;
+
+        for (u32 i = 0; i < get_machine_count(); i++) {
+            ChaosMachine& machine = get_machine(i);
+            machine.update();
+        }
+    }
+
+
     void enable_effect(ChaosEffectEntity& entity) {
         if (state < State::RUN) {
             warning("Chaos effects can't be enabled before initialization!");
@@ -278,6 +312,60 @@ namespace Chaos {
         machine.disable_effect(entity);
     }
 
+
+    void forbid_tag(const char* tag) {
+        if (state < State::RUN) {
+            warning("Tags can't be forbidden before initalization!");
+        }
+
+        Tag::tag_id id = Tag::get_tag_id(tag);
+        auto [res, affected] = Tag::exclude_tag(id);
+        if (!res) {
+            return;
+        }
+        deactivate_subgroups(affected);
+
+        std::unordered_set<Tag::combo_id> pausable;
+        auto& related = Tag::get_related_combos(id);
+        for (auto combo : related) {
+            // if (!affected.contains(combo)) {
+                pausable.insert(combo);
+            // }
+        }
+
+        for (size_t i = 0; i < machines->size(); i++) {
+            auto& machine = (*machines)[i];
+            machine.pause_effects(pausable);
+        }
+    }
+
+    void allow_tag(const char* tag) {
+        if (state < State::RUN) {
+            warning("Tags can't be allowed before initalization!");
+        }
+
+        Tag::tag_id id = Tag::get_tag_id(tag);
+        auto [res, affected] = Tag::include_tag(id);
+        if (!res) {
+            return;
+        }
+        activate_subgroups(affected);
+
+        std::unordered_set<Tag::combo_id> reasumable;
+        auto& related = Tag::get_related_combos(id);
+        for (auto combo : related) {
+            if (Tag::is_combo_included(combo)) {// && !affected.contains(combo)) {
+                reasumable.insert(combo);
+            }
+        }
+
+        for (size_t i = 0; i < machines->size(); i++) {
+            auto& machine = (*machines)[i];
+            machine.unpause_effects(reasumable);
+        }
+    }
+
+
     void stop_effect(ChaosEffectEntity& entity) {
         if (state < State::RUN) {
             warning("Chaos effects can't be stopped before initalization!");
@@ -289,22 +377,22 @@ namespace Chaos {
         machine.stop_effect(entity);
     }
 
-    void request_roll(ChaosMachine& machine) {
+    void request_roll(ChaosMachine& machine, double group_rand, double effect_rand) {
         if (state < State::RUN) {
             warning("Can't request chaos effect rolls before initalization!");
         }
 
-        machine.perform_roll();
+        machine.perform_roll(group_rand, effect_rand);
 
         debug_log("Requested roll in '%s' chaos machine.", machine.get_settings().name);
     }
 
-    void request_roll(ChaosMachine& machine, Disturbance disturbance) {
+    void request_roll(ChaosMachine& machine, Disturbance disturbance, double rand) {
         if (state < State::RUN) {
             warning("Can't request chaos effect rolls before initalization!");
         }
 
-        machine.perform_roll(disturbance);
+        machine.perform_roll(disturbance, rand);
 
         debug_log("Requested roll in %s disturbance group in '%s' chaos machine.",
             machine.get_settings().name);
@@ -339,20 +427,48 @@ namespace Chaos {
     }
 
 
+    void queue_pause_fun(ChaosEffect* effect) {
+        if (!unpause_fun_queue.erase(effect)) {
+            pause_fun_queue.insert(effect);
+        }
+    }
+
+    void queue_unpause_fun(ChaosEffect* effect) {
+        if (!pause_fun_queue.erase(effect)) {
+            unpause_fun_queue.insert(effect);
+        }
+    }
+
+    void execute_fun_queues() {
+        for (ChaosEffect* effect : pause_fun_queue) {
+            effect->on_pause_fun(_ctx);
+        }
+        pause_fun_queue.clear();
+
+        for (ChaosEffect* effect : unpause_fun_queue) {
+            effect->on_unpause_fun(_ctx);
+        }
+        unpause_fun_queue.clear();
+    }
+
+
 
     void chaos_init() {
         init();
     }
 
     void chaos_update(GameCtx* ctx) {
-        _ctx = ctx;
-
-        for (u32 i = 0; i < get_machine_count(); i++) {
-            ChaosMachine& machine = get_machine(i);
-            machine.update();
-        }
+        update(ctx);
     }
 
+    void chaos_execute_fun_queues() {
+        execute_fun_queues();
+    }
+
+
+    RECOMP_EXPORT void chaos_register_tag(const char* tag, size_t limit) {
+        register_tag(tag, limit);
+    }
 
     RECOMP_EXPORT ChaosMachine* chaos_register_machine(const ChaosMachineSettings* settings) {
         return register_machine(*settings);
@@ -371,6 +487,7 @@ namespace Chaos {
             get_machine_or_null(0), *effect, disturbance, tag_names, tag_count);
     }
 
+
     RECOMP_EXPORT void chaos_enable_effect(ChaosEffectEntity* entity) {
         enable_effect(*entity);
     }
@@ -383,11 +500,32 @@ namespace Chaos {
         stop_effect(*entity);
     }
 
+
     RECOMP_EXPORT void chaos_request_roll(ChaosMachine* machine) {
         request_roll(*machine);
     }
 
-    RECOMP_EXPORT void chaos_request_group_roll(ChaosMachine* machine, Disturbance disturbance) {
+    RECOMP_EXPORT void chaos_request_roll_d(
+        ChaosMachine* machine, double group_rand, double effect_rand) {
+        request_roll(*machine, group_rand, effect_rand);
+    }
+
+    RECOMP_EXPORT void chaos_request_group_roll(
+        ChaosMachine* machine, Disturbance disturbance) {
         request_roll(*machine, disturbance);
+    }
+
+    RECOMP_EXPORT void chaos_request_group_roll_d(
+        ChaosMachine* machine, Disturbance disturbance, double rand) {
+        request_roll(*machine, disturbance, rand);
+    }
+
+
+    RECOMP_EXPORT void chaos_forbid_tag(const char* tag) {
+        forbid_tag(tag);
+    }
+
+    RECOMP_EXPORT void chaos_allow_tag(const char* tag) {
+        allow_tag(tag);
     }
 }

@@ -14,6 +14,12 @@ private:
     aligned_T arr[N];
 
 public:
+    ~static_vector() {
+        for (std::size_t i = 0; i < size_; i++) {
+            (*this)[i].~T();
+        }
+    }
+
     T& operator[](std::size_t idx) {
         return *std::launder(reinterpret_cast<T*>(&arr[idx]));
     }

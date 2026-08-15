@@ -1,5 +1,7 @@
 #include "chaos.h"
 
+bool chaos_is_player_active = false;
+
 RECOMP_HOOK("Player_Update") void on_Player_Update(Actor* thisx, PlayState* play) {
     chaos_is_player_active = true;
 }

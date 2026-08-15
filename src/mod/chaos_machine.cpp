@@ -24,8 +24,10 @@ namespace Chaos {
         return groups[disturbance];
     }
 
-    ChaosGroup* ChaosMachine::pick_group() {
-        double rand = Rand_ZeroOne();
+    ChaosGroup* ChaosMachine::pick_group(double rand) {
+        if ((rand < 0) || (rand > 1)) {
+            rand = Rand_ZeroOne();
+        }
 
         for (int i = 0; i < Disturbance::MAX; i++) {
             ChaosGroup& group = groups[i];
@@ -41,30 +43,30 @@ namespace Chaos {
         return nullptr;
     }
 
-    void ChaosMachine::perform_roll(ChaosGroup& group) {
-        ChaosEffectEntity& effect = group.pick_effect();
+    void ChaosMachine::perform_roll(ChaosGroup& group, double rand) {
+        ChaosEffectEntity& effect = group.pick_effect(rand);
 
         debug_log("Selected '%s' effect.\n\tEffect's weight after selection: %f.",
             effect.effect.name, group.get_effect_weight(effect));
         active_effects.add(group, effect);
     }
 
-    void ChaosMachine::perform_roll(Disturbance disturbance) {
+    void ChaosMachine::perform_roll(Disturbance disturbance, double rand) {
         ChaosGroup& group = groups[disturbance];
-        perform_roll(group);
+        perform_roll(group, rand);
     }
 
-    void ChaosMachine::perform_roll() {
+    void ChaosMachine::perform_roll(double group_rand, double effect_rand) {
         debug_log("Beginning roll in '%s' chaos machine.", settings.name);
 
-        ChaosGroup* group = pick_group();
+        ChaosGroup* group = pick_group(group_rand);
 
         if (group != nullptr) {
             Disturbance disturbance = get_group_disturbance(group);
             debug_log("Selected %s disturbance group.\n\tGroup's probability after selection: %f.",
                 DISTURBANCE_NAME[disturbance], group->get_probability());
 
-            perform_roll(*group);
+            perform_roll(*group, effect_rand);
         } else {
             debug_log("Roll landed on empty space.");
         }
@@ -155,5 +157,13 @@ namespace Chaos {
             default:
                 break;
         }
+    }
+
+    void ChaosMachine::pause_effects(const std::unordered_set<Tag::combo_id>& affected_combos) {
+        active_effects.pause_effects(affected_combos);
+    }
+
+    void ChaosMachine::unpause_effects(const std::unordered_set<Tag::combo_id>& affected_combos) {
+        active_effects.unpause_effects(affected_combos);
     }
 }
