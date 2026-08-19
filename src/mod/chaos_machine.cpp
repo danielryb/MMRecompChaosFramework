@@ -107,14 +107,9 @@ namespace Chaos {
         active_effects.empty_remove_queue();
     }
 
+
     void ChaosMachine::enable_effect(ChaosEffectEntity& entity) {
         ChaosGroup& group = *entity.owner;
-
-        if (!Tag::is_combo_allowed(entity.combo)) {
-            error("Can't enable '%s' effect because of a tag conflict.",
-                entity.effect.name);
-            return;
-        }
 
         if (entity.status == ChaosEffectStatus::DISABLED) {
             group.set_effect_status(entity, ChaosEffectStatus::AVAILABLE);
@@ -158,6 +153,27 @@ namespace Chaos {
                 break;
         }
     }
+
+    void ChaosMachine::activate_effect(ChaosEffectEntity& entity) {
+        ChaosGroup& group = *entity.owner;
+
+        if (!Tag::is_combo_allowed(entity.combo)) {
+            error("Can't activate '%s' effect because of a tag conflict.",
+                entity.effect.name);
+            return;
+        }
+
+        active_effects.add(group, entity);
+
+        debug_log("Activated '%s' effect in '%s' chaos machine.",
+            entity.effect.name, settings.name);
+    }
+
+
+    u32 ChaosMachine::get_timer(const ChaosEffectEntity& entity) const {
+        return active_effects.get_timer(entity);
+    }
+
 
     void ChaosMachine::pause_effects(const std::unordered_set<Tag::combo_id>& affected_combos) {
         active_effects.pause_effects(affected_combos);

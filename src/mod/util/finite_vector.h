@@ -9,7 +9,7 @@ template <typename T>
 class finite_vector {
 private:
     const std::size_t max_size_;
-    std::size_t size_ = 0;
+    std::size_t _size = 0;
 
     using aligned_T = std::aligned_storage_t<sizeof(T), alignof(T)>;
     std::unique_ptr<aligned_T[]> arr;
@@ -19,7 +19,7 @@ public:
     : max_size_(max_size), arr(std::make_unique<aligned_T[]>(max_size)) {}
 
     ~finite_vector() {
-        for (std::size_t i = 0; i < size_; i++) {
+        for (std::size_t i = 0; i < _size; i++) {
             (*this)[i].~T();
         }
     }
@@ -34,12 +34,12 @@ public:
 
     template<typename... Args>
     void emplace_back(Args&... args) {
-        new (&arr[size_]) T(args...);
-        size_++;
+        new (&arr[_size]) T(args...);
+        _size++;
     }
 
     std::size_t size() const {
-        return size_;
+        return _size;
     }
 
     std::size_t max_size() const {

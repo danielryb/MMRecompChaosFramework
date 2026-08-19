@@ -1,10 +1,10 @@
 #include "chaos.h"
 #include "tag_names.h"
-// #include "ui.h"
+#include "ui.h"
 
 RECOMP_HOOK("Graph_Init") void on_Graph_Init(GraphicsContext* gfxCtx) {
     chaos_init();
-    // debug_ui_init();
+    debug_ui_init();
 }
 
 void update_cutscene_tag(PlayState* play) {
@@ -55,6 +55,6 @@ RECOMP_HOOK("Graph_ExecuteAndDraw") void on_Graph_ExecuteAndDraw(GraphicsContext
     chaos_execute_fun_queues();
     chaos_update(play);
 
-    // debug_ui_update();
+    debug_ui_update();
 
 }

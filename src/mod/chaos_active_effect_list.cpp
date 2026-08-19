@@ -132,6 +132,19 @@ namespace Chaos {
     }
 
 
+    u32 ActiveChaosEffectList::get_timer(const ChaosEffectEntity& effect) const {
+        for (Node* cur : {root.get(), pause_root.get()}) {
+            while (cur != nullptr) {
+                if (cur->effect == &effect) {
+                    return cur->timer;
+                }
+                cur = cur->next.get();
+            }
+        }
+        return 0;
+    }
+
+
     void ActiveChaosEffectList::move_node(
             std::unique_ptr<Node>& from_root, std::unique_ptr<Node>& to_root, Node* element) {
 

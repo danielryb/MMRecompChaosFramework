@@ -4,33 +4,33 @@
 #include <cstring>
 
 namespace Chaos {
-    double ChaosGroup::EffectSubtree::get_weight(Node& node) {
+    double ChaosGroup::EffectSubtree::get_weight(Node& node) const {
         return node.weight_deviation + owner.shared_weight;
     }
 
-    double ChaosGroup::EffectSubtree::get_left_weight(Node& node) {
+    double ChaosGroup::EffectSubtree::get_left_weight(Node& node) const {
         return node.left_deviation_sum + node.left_count * owner.shared_weight;
     }
 
 
     size_t ChaosGroup::EffectSubtree::reserve_slot() {
-        return size_++;
+        return _size++;
     }
 
     void ChaosGroup::EffectSubtree::reset_size() {
-        size_ = 0;
+        _size = 0;
     }
 
     void ChaosGroup::EffectSubtree::alloc_nodes() {
-        nodes = std::make_unique<Node[]>(size_);
+        nodes = std::make_unique<Node[]>(_size);
     }
 
 
-    bool ChaosGroup::EffectSubtree::is_counted(Node& node) {
+    bool ChaosGroup::EffectSubtree::is_counted(Node& node) const {
         return (node.effect.status == ChaosEffectStatus::AVAILABLE);
     }
 
-    double ChaosGroup::EffectSubtree::get_deviation(Node& node) {
+    double ChaosGroup::EffectSubtree::get_deviation(Node& node) const {
         if (is_counted(node)) {
             return node.weight_deviation;
         }
@@ -38,7 +38,7 @@ namespace Chaos {
     }
 
     void ChaosGroup::EffectSubtree::init_tree() {
-        for (size_t i = size_; i > 0; i--) {
+        for (size_t i = _size; i > 0; i--) {
             Node& node = nodes[i - 1];
 
             double deviation = get_deviation(node);
@@ -95,7 +95,7 @@ namespace Chaos {
 
 
     ChaosGroup::EffectSubtree::Node& ChaosGroup::EffectSubtree::get_node(double weight) {
-        for (size_t i = 1; i <= size_;) {
+        for (size_t i = 1; i <= _size;) {
             Node& node = nodes[i - 1];
             if (get_left_weight(node) >= weight) {
                 i = i * 2;
@@ -120,21 +120,21 @@ namespace Chaos {
 
 
     size_t ChaosGroup::EffectTree::size() {
-        if (combo_subgroups.size() == 0) {
+        if (subgroups.size() == 0) {
             return 0;
         }
-        return combo_subgroups.size() * 2 - 1;
+        return subgroups.size() * 2 - 1;
     }
 
-    double ChaosGroup::EffectTree::get_weight(EffectSubtree::Node& node) {
+    double ChaosGroup::EffectTree::get_weight(EffectSubtree::Node& node) const {
         return node.weight_deviation + shared_weight;
     }
 
-    double ChaosGroup::EffectTree::get_weight_sum() {
+    double ChaosGroup::EffectTree::get_weight_sum() const {
         return deviation_sum + count * shared_weight;
     }
 
-    double ChaosGroup::EffectTree::get_left_weight(Node& node) {
+    double ChaosGroup::EffectTree::get_left_weight(Node& node) const {
         Info& info = node.info;
         return info.left_deviation_sum + info.left_count * shared_weight;
     }
@@ -142,54 +142,54 @@ namespace Chaos {
 
     size_t ChaosGroup::EffectTree::reserve_slot(Tag::combo_id combo) {
         total_effect_count++;
-        auto it = combo_subgroups.find(combo);
-        if (it == combo_subgroups.end()) {
-            auto [it_, res] = combo_subgroups.emplace(combo, *this);
+        auto it = subgroups.find(combo);
+        if (it == subgroups.end()) {
+            auto [it_, res] = subgroups.emplace(combo, *this);
             it = it_;
         }
-        return it->second.reserve_slot();
+        return it->second.subtree.reserve_slot();
     }
 
     void ChaosGroup::EffectTree::reset_size() {
         total_effect_count = 0;
-        for (auto& [combo, subgroup] : combo_subgroups) {
-            subgroup.reset_size();
+        for (auto& [combo, subgroup_data] : subgroups) {
+            subgroup_data.subtree.reset_size();
         }
     }
 
     void ChaosGroup::EffectTree::alloc_nodes() {
         nodes = std::make_unique<Node[]>(size());
 
-        for (auto& [combo, subgroup] : combo_subgroups) {
-            subgroup.alloc_nodes();
+        for (auto& [combo, subgroup_data] : subgroups) {
+            subgroup_data.subtree.alloc_nodes();
         }
     }
 
 
-    bool ChaosGroup::EffectTree::is_counted(Tag::combo_id combo) {
+    bool ChaosGroup::EffectTree::is_counted(Tag::combo_id combo) const {
         return Tag::is_combo_allowed(combo);
     }
 
     void ChaosGroup::EffectTree::init_tree() {
-        for (auto& [combo, subgroup] : combo_subgroups) {
-            subgroup.init_tree();
+        for (auto& [combo, subgroup_data] : subgroups) {
+            subgroup_data.subtree.init_tree();
         }
 
         size_t t_size = size();
-        size_t combo_count = combo_subgroups.size();
+        size_t combo_count = subgroups.size();
 
         std::memset(nodes.get(), 0, (t_size - combo_count) * sizeof(Info));
-        subgroup_tree_pos.clear();
 
-        auto it = combo_subgroups.begin();
+        auto it = subgroups.begin();
 
         for (size_t i = t_size - combo_count + 1; i <= t_size; i++) {
             Node& node = nodes[i - 1];
-            auto& [combo, subtree] = *it;
+            auto& [combo, subgroup_data] = *it;
             ++it;
+            EffectSubtree& subtree = subgroup_data.subtree;
 
             node.combo = combo;
-            subgroup_tree_pos.emplace(combo, i - 1);
+            subgroup_data.node_pos = i;
 
             size_t deviation = subtree.deviation_sum;
             size_t c = is_counted(combo) ? subtree.count : 0;
@@ -213,7 +213,7 @@ namespace Chaos {
     }
 
     void ChaosGroup::EffectTree::update_deviations_upwards(Tag::combo_id combo, double delta) {
-        size_t i = subgroup_tree_pos.at(combo) + 1;
+        size_t i = subgroups.at(combo).node_pos;
 
         bool last_child_left = (i % 2 == 0);
         for (int j = i / 2; j > 0; j /= 2) {
@@ -230,7 +230,7 @@ namespace Chaos {
     }
 
     void ChaosGroup::EffectTree::update_count(Tag::combo_id combo, size_t delta) {
-        size_t i = subgroup_tree_pos.at(combo) + 1;
+        size_t i = subgroups.at(combo).node_pos;
 
         bool last_child_left = (i % 2 == 0);
         for (int j = i / 2; j > 0; j /= 2) {
@@ -264,12 +264,12 @@ namespace Chaos {
 
 
     ChaosGroup::EffectSubtree& ChaosGroup::EffectTree::get_subgroup(Tag::combo_id combo) {
-        return combo_subgroups.at(combo);
+        return subgroups.at(combo).subtree;
     }
 
     ChaosGroup::EffectSubtree& ChaosGroup::EffectTree::get_subgroup(double weight, double* local_weight_out) {
         size_t t_size = size();
-        size_t subgroups_count = combo_subgroups.size();
+        size_t subgroups_count = subgroups.size();
 
         double local_weight = weight;
         size_t i;
@@ -289,7 +289,7 @@ namespace Chaos {
             *local_weight_out = local_weight;
         }
 
-        return combo_subgroups.at(combo);
+        return subgroups.at(combo).subtree;
     }
 
     void ChaosGroup::EffectTree::share_weight(
@@ -327,25 +327,27 @@ namespace Chaos {
     }
 
     void ChaosGroup::EffectTree::activate_subgroup(Tag::combo_id combo) {
-        auto it = combo_subgroups.find(combo);
-        if (it != combo_subgroups.end()) {
+        auto it = subgroups.find(combo);
+        if (it != subgroups.end()) {
             auto& [combo, subgroup] = *it;
-            if (!subgroup.is_active) {
-                update_deviations_upwards(combo, subgroup.deviation_sum);
-                update_count(combo, subgroup.count);
-                subgroup.is_active = true;
+            EffectSubtree& subtree = subgroup.subtree;
+            if (!subtree.is_active) {
+                update_deviations_upwards(combo, subtree.deviation_sum);
+                update_count(combo, subtree.count);
+                subtree.is_active = true;
             }
         }
     }
 
     void ChaosGroup::EffectTree::deactivate_subgroup(Tag::combo_id combo) {
-        auto it = combo_subgroups.find(combo);
-        if (it != combo_subgroups.end()) {
+        auto it = subgroups.find(combo);
+        if (it != subgroups.end()) {
             auto& [combo, subgroup] = *it;
-            if (subgroup.is_active) {
-                update_deviations_upwards(combo, -subgroup.deviation_sum);
-                update_count(combo, -subgroup.count);
-                subgroup.is_active = false;
+            EffectSubtree& subtree = subgroup.subtree;
+            if (subtree.is_active) {
+                update_deviations_upwards(combo, -subtree.deviation_sum);
+                update_count(combo, -subtree.count);
+                subtree.is_active = false;
             }
         }
     }
@@ -356,11 +358,12 @@ namespace Chaos {
 
         double delta = shared_weight - 1.0 / scale;
 
-        for (auto it = combo_subgroups.begin(); it != combo_subgroups.end(); ++it) {
+        for (auto it = subgroups.begin(); it != subgroups.end(); ++it) {
             auto& [combo, subgroup] = *it;
+            EffectSubtree& subtree = subgroup.subtree;
 
-            for (size_t i = 0; i < subgroup.size_; i++) {
-                EffectSubtree::Node& node = subgroup.nodes[i];
+            for (size_t i = 0; i < subtree._size; i++) {
+                EffectSubtree::Node& node = subtree.nodes[i];
 
                 double prev_deviation = node.weight_deviation;
                 node.weight_deviation += delta;
@@ -368,18 +371,36 @@ namespace Chaos {
 
                 if (node.is_active) {
                     double change = node.weight_deviation - prev_deviation;
-                    subgroup.update_deviations_upwards(node, change);
+                    subtree.update_deviations_upwards(node, change);
                 }
             }
 
-            if (subgroup.is_active) {
-                update_deviations_upwards(combo, delta * subgroup.count);
+            if (subtree.is_active) {
+                update_deviations_upwards(combo, delta * subtree.count);
             }
         }
 
         shared_weight = 1.0;
     }
 
+
+    ChaosEffectEntity& ChaosGroup::EffectIterator::operator*() const {
+        EffectSubtree& subtree = tree_it->second.subtree;
+        return subtree.nodes[subtree_pos].effect;
+    }
+
+    ChaosGroup::EffectIterator& ChaosGroup::EffectIterator::operator++() {
+        subtree_pos++;
+        if (subtree_pos >= tree_it->second.subtree._size) {
+            subtree_pos = 0;
+            ++tree_it;
+        }
+        return *this;
+    }
+
+    bool ChaosGroup::EffectIterator::operator==(const EffectIterator& other) const {
+        return ((tree_it == other.tree_it) && (subtree_pos == other.subtree_pos));
+    }
 
 
     ChaosGroup::ChaosGroup(const ChaosGroupSettings& settings) : settings(settings) {
@@ -393,6 +414,15 @@ namespace Chaos {
 
     void ChaosGroup::apply_on_pick_multiplier() {
         probability *= settings.on_pick_multiplier;
+    }
+
+
+    ChaosGroup::EffectIterator ChaosGroup::begin() {
+        return EffectIterator(tree.subgroups.begin(), 0);
+    }
+
+    ChaosGroup::EffectIterator ChaosGroup::end() {
+        return EffectIterator(tree.subgroups.end(), 0);
     }
 
 
@@ -419,7 +449,7 @@ namespace Chaos {
 
     // TODO rewrite
     ChaosEffectEntity& ChaosGroup::get_effect(Tag::combo_id combo, size_t pos) {
-        return tree.combo_subgroups.at(combo).nodes[pos].effect;
+        return tree.subgroups.at(combo).subtree.nodes[pos].effect;
     }
 
     double ChaosGroup::get_effect_weight(ChaosEffectEntity& effect) {
@@ -432,7 +462,7 @@ namespace Chaos {
         tree.init_tree();
     }
 
-    double ChaosGroup::get_weight_sum() {
+    double ChaosGroup::get_weight_sum() const {
         return tree.get_weight_sum();
     }
 

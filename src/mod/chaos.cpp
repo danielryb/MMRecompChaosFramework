@@ -210,6 +210,7 @@ namespace Chaos {
         return NULL;
     }
 
+
     void init() {
         Tag::clear();
 
@@ -312,6 +313,28 @@ namespace Chaos {
         machine.disable_effect(entity);
     }
 
+    void activate_effect(ChaosEffectEntity& entity) {
+        if (state < State::RUN) {
+            warning("Chaos effects can't be activated before initalization!");
+        }
+
+        ChaosGroup& group = *entity.owner;
+        ChaosMachine& machine = get_machine(group);
+
+        machine.activate_effect(entity);
+    }
+
+    void stop_effect(ChaosEffectEntity& entity) {
+        if (state < State::RUN) {
+            warning("Chaos effects can't be stopped before initalization!");
+        }
+
+        ChaosGroup& group = *entity.owner;
+        ChaosMachine& machine = get_machine(group);
+
+        machine.stop_effect(entity);
+    }
+
 
     void forbid_tag(const char* tag) {
         if (state < State::RUN) {
@@ -325,13 +348,8 @@ namespace Chaos {
         }
         deactivate_subgroups(affected);
 
-        std::unordered_set<Tag::combo_id> pausable;
         auto& related = Tag::get_related_combos(id);
-        for (auto combo : related) {
-            // if (!affected.contains(combo)) {
-                pausable.insert(combo);
-            // }
-        }
+        std::unordered_set<Tag::combo_id> pausable(related.begin(), related.end());
 
         for (size_t i = 0; i < machines->size(); i++) {
             auto& machine = (*machines)[i];
@@ -354,7 +372,7 @@ namespace Chaos {
         std::unordered_set<Tag::combo_id> reasumable;
         auto& related = Tag::get_related_combos(id);
         for (auto combo : related) {
-            if (Tag::is_combo_included(combo)) {// && !affected.contains(combo)) {
+            if (Tag::is_combo_included(combo)) {
                 reasumable.insert(combo);
             }
         }
@@ -365,17 +383,6 @@ namespace Chaos {
         }
     }
 
-
-    void stop_effect(ChaosEffectEntity& entity) {
-        if (state < State::RUN) {
-            warning("Chaos effects can't be stopped before initalization!");
-        }
-
-        ChaosGroup& group = *entity.owner;
-        ChaosMachine& machine = get_machine(group);
-
-        machine.stop_effect(entity);
-    }
 
     void request_roll(ChaosMachine& machine, double group_rand, double effect_rand) {
         if (state < State::RUN) {
@@ -398,9 +405,25 @@ namespace Chaos {
             machine.get_settings().name);
     }
 
+
     size_t get_machine_count() {
         return machine_count;
     }
+
+    u32 get_total_effect_count() {
+        u32 num_effects = 0;
+
+        for (u32 i = 0; i < machine_count; i++) {
+            ChaosMachine& machine = (*machines)[i];
+            for (int j = 0; j < Disturbance::MAX; j++) {
+                ChaosGroup& group = machine.get_group(Disturbance(j));
+                num_effects += group.size();
+            }
+        }
+
+        return num_effects;
+    }
+
 
     void activate_subgroups(const std::unordered_set<Tag::combo_id>& subgroups) {
         for (u32 i = 0; i < machine_count; i++) {
@@ -487,6 +510,10 @@ namespace Chaos {
             get_machine_or_null(0), *effect, disturbance, tag_names, tag_count);
     }
 
+
+    RECOMP_EXPORT void chaos_activate_effect(ChaosEffectEntity* entity) {
+        activate_effect(*entity);
+    }
 
     RECOMP_EXPORT void chaos_enable_effect(ChaosEffectEntity* entity) {
         enable_effect(*entity);
